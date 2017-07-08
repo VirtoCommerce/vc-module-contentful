@@ -42,13 +42,14 @@ namespace VirtoCommerce.Contentful.Controllers.Api
             var json = await Request.Content.ReadAsStringAsync();
             var source = JsonConvert.DeserializeObject<JObject>(json);
 
-            // TODO: add permission checking
-            //var entry = GetEntry<Entry<Dictionary<string, Dictionary<string, object>>>>(source);
-            var entry = GetEntry<Entry<Page>>(source);
+            var entry = GetEntry<Entry<Dictionary<string, Dictionary<string, object>>>>(source);
 
             if (entry.SystemProperties.ContentType.SystemProperties.Id != "page") // we only support pages for now
                 return NotFound();
 
+            var page = new LocalizedPage(entry.SystemProperties.Id, "en-US", entry.Fields);
+
+            // cvonvert custom o
             // X-Contentful-Topic
             var headers = this.Request.Headers;
 
@@ -57,54 +58,37 @@ namespace VirtoCommerce.Contentful.Controllers.Api
 
             if (op.Equals("ContentManagement.Entry.unpublish")) // unpublish
             {
-                UnpublishContent(storeId, entry);
+                UnpublishContent(storeId, page);
             }
             else if (op.Equals("ContentManagement.Entry.publish")) // publish
             {
-                PublishContent(storeId, entry);
+                PublishContent(storeId, page);
             }
                 
             return Ok(new { result = entry });
         }
 
-        protected string[] GetObjectPermissionScopeStrings(object obj)
-        {
-            return _permissionScopeService.GetObjectPermissionScopeStrings(obj).ToArray();
-        }
-
-        protected void CheckCurrentUserHasPermissionForObjects(string permission, params object[] objects)
-        {
-            //Scope bound security check
-            var scopes = objects.SelectMany(x => _permissionScopeService.GetObjectPermissionScopeStrings(x)).Distinct().ToArray();
-            if (!_securityService.UserHasAnyPermission(User.Identity.Name, scopes, permission))
-            {
-                throw new HttpResponseException(HttpStatusCode.Unauthorized);
-            }
-        }
-
         [CheckPermission(Permission = ContentPredefinedPermissions.Delete)]
-        private void UnpublishContent(string storeId, Entry<Page> entry)
+        private void UnpublishContent(string storeId, LocalizedPage entry)
         {
             var storageProvider = _contentStorageProviderFactory($"Pages/{storeId}");
-            storageProvider.Remove(new[] { String.Format("{0}.md", entry.SystemProperties.Id) });
+            storageProvider.Remove(new[] { String.Format("{0}.md", entry.Id) });
         }
 
         [CheckPermission(Permission = ContentPredefinedPermissions.Create)]
-        private void PublishContent(string storeId, Entry<Page> entry)
+        private void PublishContent(string storeId, LocalizedPage entry)
         {
-            var language = "en-US";
             var storageProvider = _contentStorageProviderFactory($"Pages/{storeId}");
 
-            var pageYaml = new PageYaml() { Title = entry.Fields.Title[language], Permalink = entry.Fields.Filename[language] };
             var serializer = new SerializerBuilder().Build();
-            var yaml = serializer.Serialize(pageYaml);
+            var yaml = serializer.Serialize(entry.Properties);
 
             var contents = new StringBuilder();
             contents.AppendLine("---");
             contents.AppendLine(yaml);
             contents.AppendLine("---");
-            contents.AppendLine(entry.Fields.Content[language]);
-            using (var stream = storageProvider.OpenWrite(String.Format("{0}.md", entry.SystemProperties.Id)))
+            contents.AppendLine(entry.Content);
+            using (var stream = storageProvider.OpenWrite(String.Format("{0}.md", entry.Id)))
             {
                 using (var memStream = new MemoryStream(Encoding.UTF8.GetB‌​ytes(contents.ToString())))
                 {
@@ -135,19 +119,48 @@ namespace VirtoCommerce.Contentful.Controllers.Api
         }
     }
 
-    public class Page
+    public class LocalizedPage
     {
-        public Dictionary<string, string> Content { get; set; }
+        public LocalizedPage()
+        {
 
-        public Dictionary<string, string> Title { get; set; }
+        }
 
-        public Dictionary<string, string> Filename { get; set; }
-    }
+        public LocalizedPage(string id, string language, Dictionary<string, Dictionary<string, object>> properties)
+        {
+            this.Id = id;
+            this.Language = language;
+            this.Properties = new Dictionary<string, string>();
+            if(properties != null)
+            foreach(var key in properties.Keys)
+            {
+                if (properties[key].ContainsKey(language))
+                {
+                    if (properties[key][language] != null)
+                    {
+                        if (key == "content")
+                        {
+                            this.Content = properties[key][language].ToString();
+                        }
+                        else
+                        {
+                            this.Properties.Add(key, properties[key][language].ToString());
+                        }
+                    }
+                }
+            }
+        }
 
-    public class PageYaml
-    {
-        public string Title { get; set; }
-        public string Permalink { get; set; }
+        public string Id { get; set; }
+
+        public string Language { get; set; }
+
+        public string Content { get; set; }
+
+        public Dictionary<string, string> Properties
+        {
+            get; private set;
+        }
     }
 
     public static class ContentPredefinedPermissions
