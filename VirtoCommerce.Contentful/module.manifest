@@ -3,6 +3,9 @@
     <id>VirtoCommerce.Contentful</id>
     <version>1.0.0</version>
     <platformVersion>2.13.9</platformVersion>
+    <dependencies>
+        <dependency id="VirtoCommerce.Content" version="2.13.1" />
+    </dependencies>
 
     <title>Contentful Module (preview)</title>
     <description>Integration module for contentful.com.</description>
