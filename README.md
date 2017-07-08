@@ -9,12 +9,12 @@ Coming soon
 
 # Installation
 Installing the module:
-* Automatically: in VC Manager go to Configuration -> Modules -> CMS Content module -> Install
+* Automatically: in VC Manager go to Configuration -> Modules -> Contentful module -> Install
 * Manually: download module zip package from https://github.com/VirtoCommerce/vc-module-contentful/releases. In VC Manager go to Configuration -> Modules -> Advanced -> upload module package -> Install.
 
 # Settings
 * In Contentful configure webhook to point to http://{URL}/admin/api/contentful/{STOREID}?api_key={VIRTO_API_KEY}, it should only apply for create, update and delete events.
-* In Contentful create "page" entity with Title, Content and Filename properties.
+* In Contentful create "page" entity with "Title", "Content" and "Permalink" properties (you can add additional properties like layout etc).
 
 # License
 Copyright (c) Virtosoftware Ltd.  All rights reserved.
