@@ -1,0 +1,15 @@
+﻿<?xml version="1.0" encoding="utf-8" ?>
+<module>
+    <id>VirtoCommerce.Contentful</id>
+    <version>1.0.0</version>
+    <platformVersion>2.13.9</platformVersion>
+
+    <title>Contentful Module (preview)</title>
+    <description>Integration module for contentful.com.</description>
+    <authors>
+        <author>Alexander Siniouguine</author>
+    </authors>
+
+    <assemblyFile>VirtoCommerce.Contentful.dll</assemblyFile>
+    <moduleType>VirtoCommerce.Contentful.Module, VirtoCommerce.Contentful</moduleType>
+</module>

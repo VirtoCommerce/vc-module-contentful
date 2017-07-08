@@ -1,0 +1,10 @@
+{
+  "url": "https://somerandomsite122332.com",
+  "method": "POST",
+  "headers": {
+    "X-Contentful-Topic": "ContentManagement.Entry.unpublish",
+    "X-Contentful-Webhook-Name": "random",
+    "Content-Type": "application/vnd.contentful.management.v1+json"
+  },
+  "timeout": 30000
+}

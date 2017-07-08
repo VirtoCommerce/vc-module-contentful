@@ -1,0 +1,24 @@
+{
+  "sys": {
+    "type": "DeletedEntry",
+    "id": "6k7raMcM6sKkUMcI2g8Igk",
+    "space": {
+      "sys": {
+        "type": "Link",
+        "linkType": "Space",
+        "id": "swn9dcc6ph6s"
+      }
+    },
+    "revision": 1,
+    "createdAt": "2017-07-08T02:43:32.274Z",
+    "updatedAt": "2017-07-08T02:43:32.274Z",
+    "deletedAt": "2017-07-08T02:43:32.274Z",
+    "contentType": {
+      "sys": {
+        "type": "Link",
+        "linkType": "ContentType",
+        "id": "page"
+      }
+    }
+  }
+}
