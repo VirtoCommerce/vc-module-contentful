@@ -4,9 +4,6 @@ Key features:
 * develop and publish CMS pages in Contentful and automatically publish to Virto Commerce CMS
 * un-publish existing pages
 
-# Documentation
-Coming soon
-
 # Installation
 Installing the module:
 * Automatically: in VC Manager go to Configuration -> Modules -> Contentful module -> Install
@@ -17,6 +14,7 @@ Installing the module:
 
 ![image](https://user-images.githubusercontent.com/1566470/27984261-4d6bc8d8-6386-11e7-9f7d-346045311d15.png)
 
+# Documentation
 * In Contentful create "page" entity with "Title", "Content" and "Permalink" properties (you can add additional properties like layout etc).
 
 ![image](https://user-images.githubusercontent.com/1566470/27984254-f057f266-6385-11e7-9a1a-fec1bfe67439.png)
@@ -25,6 +23,9 @@ Installing the module:
 
 ![image](https://user-images.githubusercontent.com/1566470/27984274-7f482928-6386-11e7-8d23-37c461dedb4c.png)
 
+* After publishing you can open page in Virto Commerce site and it should look something like this
+
+![image](https://user-images.githubusercontent.com/1566470/27984281-a87f280a-6386-11e7-8543-74b0e0e20091.png)
 
 # License
 Copyright (c) Virtosoftware Ltd.  All rights reserved.
