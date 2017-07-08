@@ -14,6 +14,9 @@ Installing the module:
 
 # Settings
 * In Contentful configure webhook to point to http://{URL}/admin/api/contentful/{STOREID}?api_key={VIRTO_API_KEY}, it should only apply for create, update and delete events.
+
+![image](https://user-images.githubusercontent.com/1566470/27984261-4d6bc8d8-6386-11e7-9f7d-346045311d15.png)
+
 * In Contentful create "page" entity with "Title", "Content" and "Permalink" properties (you can add additional properties like layout etc).
 
 ![image](https://user-images.githubusercontent.com/1566470/27984254-f057f266-6385-11e7-9a1a-fec1bfe67439.png)
