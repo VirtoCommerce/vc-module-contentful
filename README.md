@@ -21,6 +21,11 @@ Installing the module:
 
 ![image](https://user-images.githubusercontent.com/1566470/27984254-f057f266-6385-11e7-9a1a-fec1bfe67439.png)
 
+* Now go to content and create new "page" entry
+
+![image](https://user-images.githubusercontent.com/1566470/27984274-7f482928-6386-11e7-8d23-37c461dedb4c.png)
+
+
 # License
 Copyright (c) Virtosoftware Ltd.  All rights reserved.
 
