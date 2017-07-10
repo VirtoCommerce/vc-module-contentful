@@ -44,8 +44,8 @@ namespace VirtoCommerce.Contentful.Controllers.Api
 
             var entry = GetEntry<Entry<Dictionary<string, Dictionary<string, object>>>>(source);
 
-            if (entry.SystemProperties.ContentType.SystemProperties.Id != "page") // we only support pages for now
-                return NotFound();
+            if (entry.SystemProperties.ContentType.SystemProperties.Id.StartsWith("page")) // we only support pages for now
+                return StatusCode(HttpStatusCode.NotImplemented);
 
             var page = new LocalizedPage(entry.SystemProperties.Id, "en-US", entry.Fields);
 
