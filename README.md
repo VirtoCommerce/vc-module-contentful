@@ -3,6 +3,7 @@ VirtoCommerce.Contentful module provides integration with https://contentful.com
 Key features:
 * develop and publish CMS pages in Contentful and automatically publish to Virto Commerce CMS
 * un-publish existing pages
+* create and modify products (name, properties and editorial reviews)
 
 # Installation
 Installing the module:
