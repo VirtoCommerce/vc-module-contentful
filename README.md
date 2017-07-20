@@ -29,7 +29,7 @@ Installing the module:
 ![image](https://user-images.githubusercontent.com/1566470/27984281-a87f280a-6386-11e7-8543-74b0e0e20091.png)
 
 # License
-Copyright (c) Virtosoftware Ltd.  All rights reserved.
+Copyright (c) Virtosoftware Ltd.  All rights reserved. 
 
 Licensed under the Virto Commerce Open Software License (the "License"); you
 may not use this file except in compliance with the License. You may
