@@ -20,7 +20,7 @@ namespace VirtoCommerce.Contentful.Model.Virto
                 {
                     if (key == "catalog")
                     {
-                        CatalogId = properties[key].First().Value.ToString();
+                        Catalog = properties[key].First().Value.ToString();
                     }
                     else if (key == "title")
                     {
@@ -44,7 +44,7 @@ namespace VirtoCommerce.Contentful.Model.Virto
 
         public string Id { get; set; }
 
-        public string CatalogId { get; set; }
+        public string Catalog { get; set; }
 
         public string Sku { get; set; }
 

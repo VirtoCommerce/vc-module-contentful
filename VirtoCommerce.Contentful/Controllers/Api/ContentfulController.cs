@@ -30,11 +30,12 @@ namespace VirtoCommerce.Contentful.Controllers.Api
         private readonly IPermissionScopeService _permissionScopeService;
         private readonly IStoreService _storeService;
         private readonly IItemService _itemService;
+        private readonly ICatalogService _catalogService;
 
         public ContentfulController(Func<string, IContentBlobStorageProvider> contentStorageProviderFactory, 
             IBlobUrlResolver urlResolver, ISecurityService securityService, 
             IPermissionScopeService permissionScopeService, IStoreService storeService,
-            IItemService itemService)
+            IItemService itemService, ICatalogService catalogService)
         {
             _itemService = itemService;
             _storeService = storeService;
@@ -42,6 +43,7 @@ namespace VirtoCommerce.Contentful.Controllers.Api
             _urlResolver = urlResolver;
             _securityService = securityService;
             _permissionScopeService = permissionScopeService;
+            _catalogService = catalogService;
         }
 
         // GET: api/contentful/stores/{storeid}
@@ -156,7 +158,7 @@ namespace VirtoCommerce.Contentful.Controllers.Api
                         }
                     }
 
-                    propValuesList.Add(new PropertyValue(){PropertyName = "contentfullid",Value = entry.Id});
+                    propValuesList.Add(new PropertyValue(){PropertyName = "contentfulid",Value = entry.Id});
 
                     // add new properties or update existing ones
                     if (product.PropertyValues == null)
@@ -198,6 +200,11 @@ namespace VirtoCommerce.Contentful.Controllers.Api
 
         private CatalogProduct GetCatalogProduct(ProductEntity entry, out bool isNew)
         {
+            // try finding catalog by name
+            var catalog = _catalogService.GetCatalogsList().Where(x => x.Name.Equals(entry.Catalog, StringComparison.OrdinalIgnoreCase)).SingleOrDefault();
+            if (catalog == null)
+                throw new ApplicationException("Catalog not found");
+
             // try finding product by id
             var product = _itemService.GetById(entry.Id, ItemResponseGroup.ItemLarge);
             isNew = false;
@@ -207,7 +214,7 @@ namespace VirtoCommerce.Contentful.Controllers.Api
                 isNew = true;
                 product = new CatalogProduct()
                 {
-                    CatalogId = entry.CatalogId,
+                    CatalogId = catalog.Id,
                     Id = entry.Sku,
                     Name = entry.Name["en-US"],
                     Code = entry.Sku
