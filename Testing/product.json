@@ -15,23 +15,23 @@
         "id": "product"
       }
     },
-    "id": "2ecPAczTqQ4yuWaWgG6I4m",
-    "revision": 1,
-    "createdAt": "2017-07-20T06:24:38.190Z",
-    "updatedAt": "2017-07-20T06:24:38.190Z"
+    "id": "47zZC8Tgak8agAKI6Uu4UG",
+    "revision": 4,
+    "createdAt": "2017-07-20T07:03:06.010Z",
+    "updatedAt": "2017-07-20T07:05:11.549Z"
   },
   "fields": {
     "title": {
-      "en-US": "sample product"
+      "en-US": "3DR Solo Quadcopter (No Gimbal)2"
     },
     "sku": {
-      "en-US": "sample-product"
+      "en-US": "DJP3P"
     },
-    "brand": {
+    "manufacturer": {
       "en-US": "Samsung"
     },
     "content": {
-      "en-US": "sample product here"
+      "en-US": "Content"
     },
     "catalog": {
       "en-US": "electronics"

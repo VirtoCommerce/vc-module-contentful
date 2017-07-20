@@ -215,9 +215,10 @@ namespace VirtoCommerce.Contentful.Controllers.Api
             // try finding product by id
 
             var criteria = new SearchCriteria();
-            criteria.CatalogId = catalog.Id;
+            //criteria.CatalogId = catalog.Id;
             criteria.Code = entry.Sku;
-            criteria.ResponseGroup = SearchResponseGroup.Full;
+            criteria.ResponseGroup = SearchResponseGroup.WithProducts;
+            criteria.WithHidden = true;
             var results = _searchService.Search(criteria);
 
             CatalogProduct product = null; //= _itemService.GetById(entry.Id, ItemResponseGroup.ItemLarge);
@@ -239,6 +240,11 @@ namespace VirtoCommerce.Contentful.Controllers.Api
                     Name = entry.Name["en-US"],
                     Code = entry.Sku
                 };
+            }
+            else
+            {
+                // change title
+                product.Name = entry.Name["en-US"];
             }
 
             return product;
