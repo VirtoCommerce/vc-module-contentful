@@ -130,6 +130,9 @@
     <Reference Include="VirtoCommerce.ContentModule.Data, Version=2.13.0.0, Culture=neutral, processorArchitecture=MSIL">
       <HintPath>..\packages\VirtoCommerce.ContentModule.Data.2.13.0\lib\net461\VirtoCommerce.ContentModule.Data.dll</HintPath>
     </Reference>
+    <Reference Include="VirtoCommerce.Domain, Version=2.24.0.0, Culture=neutral, processorArchitecture=MSIL">
+      <HintPath>..\packages\VirtoCommerce.Domain.2.24.0\lib\net461\VirtoCommerce.Domain.dll</HintPath>
+    </Reference>
     <Reference Include="VirtoCommerce.Platform.Core">
       <HintPath>..\packages\VirtoCommerce.Platform.Core.2.13.9\lib\net461\VirtoCommerce.Platform.Core.dll</HintPath>
       <Private>True</Private>
@@ -228,7 +231,8 @@
     <Compile Include="Model\SyncResult.cs" />
     <Compile Include="Model\SyncType.cs" />
     <Compile Include="Model\SystemProperties.cs" />
-    <Compile Include="Model\Virto\Page.cs" />
+    <Compile Include="Model\Virto\LocalizedPageEntity.cs" />
+    <Compile Include="Model\Virto\ProductEntity.cs" />
     <Compile Include="Module.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="Search\FieldHelpers.cs" />

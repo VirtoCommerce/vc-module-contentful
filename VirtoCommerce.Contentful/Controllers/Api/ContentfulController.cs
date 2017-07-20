@@ -5,12 +5,15 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
-using System.Net;
 using System.Reflection;
 using System.Text;
 using System.Threading.Tasks;
 using System.Web.Http;
+using VirtoCommerce.Contentful.Model.Virto;
 using VirtoCommerce.ContentModule.Data.Services;
+using VirtoCommerce.Domain.Catalog.Model;
+using VirtoCommerce.Domain.Catalog.Services;
+using VirtoCommerce.Domain.Store.Services;
 using VirtoCommerce.Platform.Core.Assets;
 using VirtoCommerce.Platform.Core.Security;
 using VirtoCommerce.Platform.Core.Web.Security;
@@ -25,58 +28,218 @@ namespace VirtoCommerce.Contentful.Controllers.Api
         private readonly IBlobUrlResolver _urlResolver;
         private readonly ISecurityService _securityService;
         private readonly IPermissionScopeService _permissionScopeService;
+        private readonly IStoreService _storeService;
+        private readonly IItemService _itemService;
 
-        public ContentfulController(Func<string, IContentBlobStorageProvider> contentStorageProviderFactory, IBlobUrlResolver urlResolver, ISecurityService securityService, IPermissionScopeService permissionScopeService)
+        public ContentfulController(Func<string, IContentBlobStorageProvider> contentStorageProviderFactory, 
+            IBlobUrlResolver urlResolver, ISecurityService securityService, 
+            IPermissionScopeService permissionScopeService, IStoreService storeService,
+            IItemService itemService)
         {
+            _itemService = itemService;
+            _storeService = storeService;
             _contentStorageProviderFactory = contentStorageProviderFactory;
             _urlResolver = urlResolver;
             _securityService = securityService;
             _permissionScopeService = permissionScopeService;
         }
 
-        // GET: api/contentful
+        // GET: api/contentful/stores/{storeid}
         [HttpPost]
         [Route("{storeId}")]
         public async Task<IHttpActionResult> WebhookHandlerAsync(string storeId)
         {
+            // TODO: add check if user has store permissions
             var json = await Request.Content.ReadAsStringAsync();
             var source = JsonConvert.DeserializeObject<JObject>(json);
 
             var entry = GetEntry<Entry<Dictionary<string, Dictionary<string, object>>>>(source);
 
-            if (!entry.SystemProperties.ContentType.SystemProperties.Id.StartsWith("page")) // we only support pages for now
-                return StatusCode(HttpStatusCode.NotImplemented);
+            var type = GetEntryType(entry.SystemProperties.ContentType.SystemProperties.Id);
 
-            var page = new LocalizedPage(entry.SystemProperties.Id, "en-US", entry.Fields);
+            if (type == EntryType.Unknown)
+                return Ok("Only entities named \"page*\" are supported");
 
-            // cvonvert custom o
+            // now check if store actually exists, this is more expensive than checking page type, so do it later
+            var store = _storeService.GetById(storeId);
+            if (store == null)
+            {
+                return NotFound();
+            }
+
             // X-Contentful-Topic
             var headers = this.Request.Headers;
 
             var operations = headers.GetValues("X-Contentful-Topic");
             var op = operations.FirstOrDefault();
+            var action = GetAction(op);
 
-            if (op.Equals("ContentManagement.Entry.unpublish")) // unpublish
+            // TODO: get language from the response, add support for multiple languages
+            if (type == EntryType.Page) // create/update/delete CMS pages
             {
-                UnpublishContent(storeId, page);
+                var page = new LocalizedPageEntity(entry.SystemProperties.Id, "en-US", entry.Fields);
+                RouteContentCall(action, storeId, page);
             }
-            else if (op.Equals("ContentManagement.Entry.publish")) // publish
+            if (type == EntryType.Product) // create/update/delete products
             {
-                PublishContent(storeId, page);
+                var product = new ProductEntity(entry.SystemProperties.Id, entry.Fields);
+                RouteProductCall(action, product);
             }
-                
-            return Ok(new { result = entry });
+
+            return Ok("Updated successfully");
+        }
+
+        #region Product
+        private void RouteProductCall(Operation op, ProductEntity entry)
+        {
+            const string ReviewType = "FullReview";
+            if (op == Operation.Publish) // publish
+            {
+                var product = GetCatalogProduct(entry, out bool isNew);
+                product.IsActive = true;
+
+                if (entry.Content != null)
+                {
+                    var list = new List<EditorialReview>();
+                    foreach(var lang in entry.Content.Keys)
+                    {
+                        var review = new EditorialReview()
+                        {
+                            Content = entry.Content[lang],
+                            ReviewType = ReviewType
+                        };
+
+                        list.Add(review);
+                    }
+
+                    // add new reviews or update existing ones
+                    if (product.Reviews == null)
+                    {
+                        product.Reviews = list.ToArray();
+                    }
+                    else
+                    {
+                        foreach(var review in list)
+                        {
+                            var existingReview = product.Reviews.Where(x => x.ReviewType == ReviewType && x.LanguageCode == review.LanguageCode).SingleOrDefault();
+                            if(existingReview == null)
+                            {
+                                product.Reviews.Add(review);
+                            }
+                            else
+                            {
+                                existingReview.Content = review.Content;
+                            }
+                        }
+                       
+                    }
+                }
+
+                // now add all the properties
+                if (entry.Properties != null)
+                {
+                    var propValuesList = new List<PropertyValue>();
+                    foreach (var key in entry.Properties.Keys)
+                    {
+                        var prop = entry.Properties[key];
+
+                        foreach (var lang in prop.Keys)
+                        {
+                            var proValue = new PropertyValue()
+                            {
+                                LanguageCode = lang,
+                                PropertyName = key,
+                                Value = prop[lang]
+                            };
+
+                            propValuesList.Add(proValue);
+                        }
+                    }
+
+                    propValuesList.Add(new PropertyValue(){PropertyName = "contentfullid",Value = entry.Id});
+
+                    // add new properties or update existing ones
+                    if (product.PropertyValues == null)
+                    {
+                        product.PropertyValues = propValuesList.ToArray();
+                    }
+                    else
+                    {
+                        foreach (var propertyValue in propValuesList)
+                        {
+                            var existingPropertyValue = product.PropertyValues.Where(x => x.PropertyName == propertyValue.PropertyName && x.LanguageCode == propertyValue.LanguageCode).SingleOrDefault();
+                            if (existingPropertyValue == null)
+                            {
+                                product.PropertyValues.Add(propertyValue);
+                            }
+                            else
+                            {
+                                existingPropertyValue.Value = propertyValue.Value;
+                            }
+                        }
+                    }                    
+                }
+
+
+                if (isNew)
+                    _itemService.Create(product);
+                else
+                    _itemService.Update(new[] { product });
+            }
+            else if (op == Operation.Unpublish || op == Operation.Delete) // unpublish
+            {
+                var product = GetCatalogProduct(entry, out bool isNew);
+                product.IsActive = false;
+
+                if(!isNew)
+                    _itemService.Update(new[] { product });
+            }
+        }
+
+        private CatalogProduct GetCatalogProduct(ProductEntity entry, out bool isNew)
+        {
+            // try finding product by id
+            var product = _itemService.GetById(entry.Id, ItemResponseGroup.ItemLarge);
+            isNew = false;
+
+            if (product == null)
+            {
+                isNew = true;
+                product = new CatalogProduct()
+                {
+                    CatalogId = entry.CatalogId,
+                    Id = entry.Sku,
+                    Name = entry.Name["en-US"],
+                    Code = entry.Sku
+                };
+            }
+
+            return product;
+        }
+        #endregion
+
+        #region CMS
+        private void RouteContentCall(Operation op, string storeId, LocalizedPageEntity entry)
+        {
+            if (op == Operation.Undefined) // unpublish
+            {
+                UnpublishContentPage(storeId, entry);
+            }
+            else if (op == Operation.Publish) // publish
+            {
+                PublishContentPage(storeId, entry);
+            }
         }
 
         [CheckPermission(Permission = ContentPredefinedPermissions.Delete)]
-        private void UnpublishContent(string storeId, LocalizedPage entry)
+        private void UnpublishContentPage(string storeId, LocalizedPageEntity entry)
         {
             var storageProvider = _contentStorageProviderFactory($"Pages/{storeId}");
             storageProvider.Remove(new[] { String.Format("{0}.md", entry.Id) });
         }
 
         [CheckPermission(Permission = ContentPredefinedPermissions.Create)]
-        private void PublishContent(string storeId, LocalizedPage entry)
+        private void PublishContentPage(string storeId, LocalizedPageEntity entry)
         {
             var storageProvider = _contentStorageProviderFactory($"Pages/{storeId}");
 
@@ -96,6 +259,7 @@ namespace VirtoCommerce.Contentful.Controllers.Api
                 }
             }
         }
+        #endregion
 
         private T GetEntry<T>(JObject source)
         {
@@ -117,49 +281,29 @@ namespace VirtoCommerce.Contentful.Controllers.Api
             }
             return ob;
         }
-    }
 
-    public class LocalizedPage
-    {
-        public LocalizedPage()
+        private Operation GetAction(string topic)
         {
-
-        }
-
-        public LocalizedPage(string id, string language, Dictionary<string, Dictionary<string, object>> properties)
-        {
-            this.Id = id;
-            this.Language = language;
-            this.Properties = new Dictionary<string, string>();
-            if(properties != null)
-            foreach(var key in properties.Keys)
+            if (topic.Equals("ContentManagement.Entry.unpublish")) // unpublish
             {
-                if (properties[key].ContainsKey(language))
-                {
-                    if (properties[key][language] != null)
-                    {
-                        if (key == "content")
-                        {
-                            this.Content = properties[key][language].ToString();
-                        }
-                        else
-                        {
-                            this.Properties.Add(key, properties[key][language].ToString());
-                        }
-                    }
-                }
+                return Operation.Unpublish;
             }
+            else if (topic.Equals("ContentManagement.Entry.publish")) // publish
+            {
+                return Operation.Publish;
+            }
+
+            return Operation.Undefined;
         }
 
-        public string Id { get; set; }
-
-        public string Language { get; set; }
-
-        public string Content { get; set; }
-
-        public Dictionary<string, string> Properties
+        private EntryType GetEntryType(string entityType)
         {
-            get; private set;
+            if (entityType.StartsWith("page")) // we only support pages for now
+                return EntryType.Page;
+            if (entityType.StartsWith("product"))
+                return EntryType.Product;
+
+            return EntryType.Unknown;
         }
     }
 
@@ -170,5 +314,22 @@ namespace VirtoCommerce.Contentful.Controllers.Api
             Access = "content:access",
             Update = "content:update",
             Delete = "content:delete";
+    }
+
+    public enum Operation
+    {
+        Undefined,
+        Publish,
+        Unpublish,
+        Update,
+        Delete
+    }
+
+    public enum EntryType
+    {
+        Unknown,
+        Page,
+        BlogArticle,
+        Product
     }
 }

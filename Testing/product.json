@@ -1,0 +1,40 @@
+{
+  "sys": {
+    "space": {
+      "sys": {
+        "type": "Link",
+        "linkType": "Space",
+        "id": "swn9dcc6ph6s"
+      }
+    },
+    "type": "Entry",
+    "contentType": {
+      "sys": {
+        "type": "Link",
+        "linkType": "ContentType",
+        "id": "product"
+      }
+    },
+    "id": "5z8tJbI1DaC0AgSCaY0wES",
+    "revision": 1,
+    "createdAt": "2017-07-19T00:42:53.973Z",
+    "updatedAt": "2017-07-19T00:42:53.973Z"
+  },
+  "fields": {
+    "title": {
+      "en-US": "test"
+    },
+    "sku": {
+      "en-US": "test-product"
+    },
+    "permalink": {
+      "en-US": "test"
+    },
+    "content": {
+      "en-US": "sample content2"
+    },
+    "catalog": {
+      "en-US": "4974648a41df4e6ea67ef2ad76d7bbd4"
+    }
+  }
+}
