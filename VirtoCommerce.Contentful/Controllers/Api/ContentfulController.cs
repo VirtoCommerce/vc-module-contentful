@@ -31,11 +31,12 @@ namespace VirtoCommerce.Contentful.Controllers.Api
         private readonly IStoreService _storeService;
         private readonly IItemService _itemService;
         private readonly ICatalogService _catalogService;
+        private readonly ICatalogSearchService _searchService;
 
         public ContentfulController(Func<string, IContentBlobStorageProvider> contentStorageProviderFactory, 
             IBlobUrlResolver urlResolver, ISecurityService securityService, 
             IPermissionScopeService permissionScopeService, IStoreService storeService,
-            IItemService itemService, ICatalogService catalogService)
+            IItemService itemService, ICatalogService catalogService, ICatalogSearchService searchService)
         {
             _itemService = itemService;
             _storeService = storeService;
@@ -44,6 +45,7 @@ namespace VirtoCommerce.Contentful.Controllers.Api
             _securityService = securityService;
             _permissionScopeService = permissionScopeService;
             _catalogService = catalogService;
+            _searchService = searchService;
         }
 
         // GET: api/contentful/stores/{storeid}
@@ -182,19 +184,24 @@ namespace VirtoCommerce.Contentful.Controllers.Api
                     }                    
                 }
 
-
                 if (isNew)
+                {
                     _itemService.Create(product);
+                }
                 else
+                {
                     _itemService.Update(new[] { product });
+                }
             }
             else if (op == Operation.Unpublish || op == Operation.Delete) // unpublish
             {
                 var product = GetCatalogProduct(entry, out bool isNew);
                 product.IsActive = false;
 
-                if(!isNew)
+                if (!isNew)
+                {
                     _itemService.Update(new[] { product });
+                }
             }
         }
 
@@ -206,7 +213,20 @@ namespace VirtoCommerce.Contentful.Controllers.Api
                 throw new ApplicationException("Catalog not found");
 
             // try finding product by id
-            var product = _itemService.GetById(entry.Id, ItemResponseGroup.ItemLarge);
+
+            var criteria = new SearchCriteria();
+            criteria.CatalogId = catalog.Id;
+            criteria.Code = entry.Sku;
+            criteria.ResponseGroup = SearchResponseGroup.Full;
+            var results = _searchService.Search(criteria);
+
+            CatalogProduct product = null; //= _itemService.GetById(entry.Id, ItemResponseGroup.ItemLarge);
+
+            if(results.ProductsTotalCount > 0)
+            {
+                product = results.Products.SingleOrDefault();
+            }
+
             isNew = false;
 
             if (product == null)

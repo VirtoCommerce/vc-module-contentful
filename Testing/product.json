@@ -15,23 +15,23 @@
         "id": "product"
       }
     },
-    "id": "5z8tJbI1DaC0AgSCaY0wES",
+    "id": "2ecPAczTqQ4yuWaWgG6I4m",
     "revision": 1,
-    "createdAt": "2017-07-19T00:42:53.973Z",
-    "updatedAt": "2017-07-19T00:42:53.973Z"
+    "createdAt": "2017-07-20T06:24:38.190Z",
+    "updatedAt": "2017-07-20T06:24:38.190Z"
   },
   "fields": {
     "title": {
-      "en-US": "test"
+      "en-US": "sample product"
     },
     "sku": {
-      "en-US": "test-product"
+      "en-US": "sample-product"
     },
-    "permalink": {
-      "en-US": "test"
+    "brand": {
+      "en-US": "Samsung"
     },
     "content": {
-      "en-US": "sample content2"
+      "en-US": "sample product here"
     },
     "catalog": {
       "en-US": "electronics"
