@@ -9,9 +9,11 @@ using System.Reflection;
 using System.Text;
 using System.Threading.Tasks;
 using System.Web.Http;
+using VirtoCommerce.CatalogModule.Data.Search;
 using VirtoCommerce.Contentful.Model.Virto;
 using VirtoCommerce.ContentModule.Data.Services;
 using VirtoCommerce.Domain.Catalog.Model;
+using VirtoCommerce.Domain.Catalog.Model.Search;
 using VirtoCommerce.Domain.Catalog.Services;
 using VirtoCommerce.Domain.Store.Services;
 using VirtoCommerce.Platform.Core.Assets;
@@ -32,11 +34,12 @@ namespace VirtoCommerce.Contentful.Controllers.Api
         private readonly IItemService _itemService;
         private readonly ICatalogService _catalogService;
         private readonly ICatalogSearchService _searchService;
+        private readonly IProductSearchService _productSearchService;
 
         public ContentfulController(Func<string, IContentBlobStorageProvider> contentStorageProviderFactory, 
             IBlobUrlResolver urlResolver, ISecurityService securityService, 
             IPermissionScopeService permissionScopeService, IStoreService storeService,
-            IItemService itemService, ICatalogService catalogService, ICatalogSearchService searchService)
+            IItemService itemService, ICatalogService catalogService, ICatalogSearchService searchService, IProductSearchService productSearchService)
         {
             _itemService = itemService;
             _storeService = storeService;
@@ -46,6 +49,7 @@ namespace VirtoCommerce.Contentful.Controllers.Api
             _permissionScopeService = permissionScopeService;
             _catalogService = catalogService;
             _searchService = searchService;
+            _productSearchService = productSearchService;
         }
 
         // GET: api/contentful/stores/{storeid}
@@ -81,8 +85,12 @@ namespace VirtoCommerce.Contentful.Controllers.Api
             // TODO: get language from the response, add support for multiple languages
             if (type == EntryType.Page) // create/update/delete CMS pages
             {
-                var page = new LocalizedPageEntity(entry.SystemProperties.Id, "en-US", entry.Fields);
-                RouteContentCall(action, storeId, page);
+                // go through all the languages
+                foreach (var lang in entry.Fields["title"].Keys)
+                {
+                    var page = new LocalizedPageEntity(entry.SystemProperties.Id, lang, entry.Fields);
+                    RouteContentCall(action, storeId, page);
+                }
             }
             if (type == EntryType.Product) // create/update/delete products
             {
@@ -105,12 +113,13 @@ namespace VirtoCommerce.Contentful.Controllers.Api
                 if (entry.Content != null)
                 {
                     var list = new List<EditorialReview>();
-                    foreach(var lang in entry.Content.Keys)
+                    foreach (var lang in entry.Content.Keys)
                     {
                         var review = new EditorialReview()
                         {
                             Content = entry.Content[lang],
-                            ReviewType = ReviewType
+                            ReviewType = ReviewType,
+                            LanguageCode = lang
                         };
 
                         list.Add(review);
@@ -123,10 +132,10 @@ namespace VirtoCommerce.Contentful.Controllers.Api
                     }
                     else
                     {
-                        foreach(var review in list)
+                        foreach (var review in list)
                         {
                             var existingReview = product.Reviews.Where(x => x.ReviewType == ReviewType && x.LanguageCode == review.LanguageCode).SingleOrDefault();
-                            if(existingReview == null)
+                            if (existingReview == null)
                             {
                                 product.Reviews.Add(review);
                             }
@@ -135,7 +144,7 @@ namespace VirtoCommerce.Contentful.Controllers.Api
                                 existingReview.Content = review.Content;
                             }
                         }
-                       
+
                     }
                 }
 
@@ -160,7 +169,7 @@ namespace VirtoCommerce.Contentful.Controllers.Api
                         }
                     }
 
-                    propValuesList.Add(new PropertyValue(){PropertyName = "contentfulid",Value = entry.Id});
+                    propValuesList.Add(new PropertyValue() { PropertyName = "contentfulid", Value = entry.Id });
 
                     // add new properties or update existing ones
                     if (product.PropertyValues == null)
@@ -181,7 +190,7 @@ namespace VirtoCommerce.Contentful.Controllers.Api
                                 existingPropertyValue.Value = propertyValue.Value;
                             }
                         }
-                    }                    
+                    }
                 }
 
                 if (isNew)
@@ -195,12 +204,16 @@ namespace VirtoCommerce.Contentful.Controllers.Api
             }
             else if (op == Operation.Unpublish || op == Operation.Delete) // unpublish
             {
-                var product = GetCatalogProduct(entry, out bool isNew);
-                product.IsActive = false;
+                var criteria = new ProductSearchCriteria();
+                criteria.Terms = new[] { string.Format("contentfulid:{0}", entry.Id) };
+                var result = _productSearchService.SearchAsync(criteria).Result;
 
-                if (!isNew)
+                if (result.TotalCount > 0)
                 {
+                    var product = _itemService.GetById(result.Items[0].Id, ItemResponseGroup.ItemLarge); // reload complete product now
+                    product.IsActive = false;
                     _itemService.Update(new[] { product });
+
                 }
             }
         }
@@ -226,6 +239,7 @@ namespace VirtoCommerce.Contentful.Controllers.Api
             if(results.ProductsTotalCount > 0)
             {
                 product = results.Products.SingleOrDefault();
+                product = _itemService.GetById(product.Id, ItemResponseGroup.ItemLarge); // reload complete product now
             }
 
             isNew = false;
@@ -237,14 +251,14 @@ namespace VirtoCommerce.Contentful.Controllers.Api
                 {
                     CatalogId = catalog.Id,
                     Id = entry.Sku,
-                    Name = entry.Name["en-US"],
+                    Name = entry.Name,
                     Code = entry.Sku
                 };
             }
             else
             {
                 // change title
-                product.Name = entry.Name["en-US"];
+                product.Name = entry.Name;
             }
 
             return product;

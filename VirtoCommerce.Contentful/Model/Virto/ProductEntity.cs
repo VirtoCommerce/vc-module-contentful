@@ -24,7 +24,7 @@ namespace VirtoCommerce.Contentful.Model.Virto
                     }
                     else if (key == "title")
                     {
-                        Name = properties[key].ToDictionary(k => k.Key, v => v.Value.ToString());
+                        Name = properties[key].First().Value.ToString();
                     }
                     else if (key == "sku")
                     {
@@ -48,7 +48,7 @@ namespace VirtoCommerce.Contentful.Model.Virto
 
         public string Sku { get; set; }
 
-        public Dictionary<string, string> Name { get; set; }
+        public string Name { get; set; }
 
         public Dictionary<string, string> Content { get; set; }
 
