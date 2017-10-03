@@ -91,14 +91,17 @@ namespace VirtoCommerce.Contentful.Controllers.Api
                     var page = new LocalizedPageEntity(entry.SystemProperties.Id, lang, entry.Fields);
                     RouteContentCall(action, storeId, page);
                 }
+
+                return Ok(string.Format("Page updated successfully \"{0}\"", entry.SystemProperties.Id));
             }
             if (type == EntryType.Product) // create/update/delete products
             {
                 var product = new ProductEntity(entry.SystemProperties.Id, entry.Fields);
                 RouteProductCall(action, product);
+                return Ok(string.Format("Product updated successfully \"{0}\"", entry.SystemProperties.Id));
             }
 
-            return Ok("Updated successfully");
+            return Ok(String.Format("No hanldder for type \"{0}\" found", entry.SystemProperties.ContentType.SystemProperties.Id));
         }
 
         #region Product
