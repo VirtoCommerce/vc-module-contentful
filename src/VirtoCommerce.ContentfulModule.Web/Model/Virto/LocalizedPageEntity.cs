@@ -1,6 +1,6 @@
 ﻿using System.Collections.Generic;
 
-namespace VirtoCommerce.Contentful.Model.Virto
+namespace VirtoCommerce.ContentfulModule.Web.Model.Virto
 {
     public class LocalizedPageEntity
     {

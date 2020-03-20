@@ -1,4 +1,6 @@
-﻿using Contentful.Core.Models;
+using Contentful.Core.Models;
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 using System;
@@ -8,45 +10,39 @@ using System.Linq;
 using System.Reflection;
 using System.Text;
 using System.Threading.Tasks;
-using System.Web.Http;
-using VirtoCommerce.CatalogModule.Data.Search;
-using VirtoCommerce.Contentful.Model.Virto;
-using VirtoCommerce.ContentModule.Data.Services;
-using VirtoCommerce.Domain.Catalog.Model;
-using VirtoCommerce.Domain.Catalog.Model.Search;
-using VirtoCommerce.Domain.Catalog.Services;
-using VirtoCommerce.Domain.Store.Services;
+using VirtoCommerce.CatalogModule.Core.Model;
+using VirtoCommerce.CatalogModule.Core.Model.Search;
+using VirtoCommerce.CatalogModule.Core.Search;
+using VirtoCommerce.CatalogModule.Core.Services;
+using VirtoCommerce.ContentfulModule.Web.Model.Virto;
+using VirtoCommerce.ContentModule.Core.Services;
 using VirtoCommerce.Platform.Core.Assets;
-using VirtoCommerce.Platform.Core.Security;
-using VirtoCommerce.Platform.Core.Web.Security;
+using VirtoCommerce.StoreModule.Core.Services;
 using YamlDotNet.Serialization;
+using static VirtoCommerce.ContentModule.Core.ContentConstants.Security;
 
-namespace VirtoCommerce.Contentful.Controllers.Api
+namespace VirtoCommerce.ContentfulModule.Web.Controllers.Api
 {
-    [RoutePrefix("api/contentful")]
-    public class ContentfulController : ApiController
+    [Route("api/contentful")]
+    public class ContentfulController : Controller
     {
-        private readonly Func<string, IContentBlobStorageProvider> _contentStorageProviderFactory;
+        private readonly IBlobContentStorageProviderFactory _contentStorageProviderFactory;
         private readonly IBlobUrlResolver _urlResolver;
-        private readonly ISecurityService _securityService;
-        private readonly IPermissionScopeService _permissionScopeService;
         private readonly IStoreService _storeService;
         private readonly IItemService _itemService;
         private readonly ICatalogService _catalogService;
         private readonly ICatalogSearchService _searchService;
         private readonly IProductSearchService _productSearchService;
 
-        public ContentfulController(Func<string, IContentBlobStorageProvider> contentStorageProviderFactory, 
-            IBlobUrlResolver urlResolver, ISecurityService securityService, 
-            IPermissionScopeService permissionScopeService, IStoreService storeService,
-            IItemService itemService, ICatalogService catalogService, ICatalogSearchService searchService, IProductSearchService productSearchService)
+        public ContentfulController(IBlobContentStorageProviderFactory contentStorageProviderFactory, 
+            IBlobUrlResolver urlResolver, IStoreService storeService, 
+            IItemService itemService, ICatalogService catalogService, 
+            ICatalogSearchService searchService, IProductSearchService productSearchService)
         {
             _itemService = itemService;
             _storeService = storeService;
             _contentStorageProviderFactory = contentStorageProviderFactory;
             _urlResolver = urlResolver;
-            _securityService = securityService;
-            _permissionScopeService = permissionScopeService;
             _catalogService = catalogService;
             _searchService = searchService;
             _productSearchService = productSearchService;
@@ -55,10 +51,14 @@ namespace VirtoCommerce.Contentful.Controllers.Api
         // GET: api/contentful/stores/{storeid}
         [HttpPost]
         [Route("{storeId}")]
-        public async Task<IHttpActionResult> WebhookHandlerAsync(string storeId)
+        public async Task<ActionResult> WebhookHandlerAsync(string storeId)
         {
             // TODO: add check if user has store permissions
-            var json = await Request.Content.ReadAsStringAsync();
+            var json = new StreamReader(Request.Body).ReadToEndAsync().Result;
+
+            if (String.IsNullOrWhiteSpace(json))
+                throw new NullReferenceException("http post body contains no json");
+
             var source = JsonConvert.DeserializeObject<JObject>(json);
 
             var entry = GetEntry<Entry<Dictionary<string, Dictionary<string, object>>>>(source);
@@ -69,7 +69,7 @@ namespace VirtoCommerce.Contentful.Controllers.Api
                 return Ok("Only entities named \"page*\" are supported");
 
             // now check if store actually exists, this is more expensive than checking page type, so do it later
-            var store = _storeService.GetById(storeId);
+            var store = _storeService.GetByIdAsync(storeId).Result;
             if (store == null)
             {
                 return NotFound();
@@ -78,7 +78,7 @@ namespace VirtoCommerce.Contentful.Controllers.Api
             // X-Contentful-Topic
             var headers = this.Request.Headers;
 
-            var operations = headers.GetValues("X-Contentful-Topic");
+            var operations = headers["X-Contentful-Topic"];
             var op = operations.FirstOrDefault();
             var action = GetAction(op);
 
@@ -101,7 +101,7 @@ namespace VirtoCommerce.Contentful.Controllers.Api
                 return Ok(string.Format("Product updated successfully \"{0}\"", entry.SystemProperties.Id));
             }
 
-            return Ok(String.Format("No hanldder for type \"{0}\" found", entry.SystemProperties.ContentType.SystemProperties.Id));
+            return Ok(String.Format("No handler for type \"{0}\" found", entry.SystemProperties.ContentType.SystemProperties.Id));
         }
 
         #region Product
@@ -198,31 +198,37 @@ namespace VirtoCommerce.Contentful.Controllers.Api
 
                 if (isNew)
                 {
-                    _itemService.Create(product);
+                    _itemService.SaveChangesAsync(new[] { product });
                 }
                 else
                 {
-                    _itemService.Update(new[] { product });
+                    _itemService.SaveChangesAsync(new[] { product });
                 }
             }
             else if (op == Operation.Unpublish || op == Operation.Delete) // unpublish
             {
-                var criteria = new ProductSearchCriteria();
+                /*
+                var criteria = new CatalogIndexedSearchCriteria();
                 criteria.Terms = new[] { string.Format("contentfulid:{0}", entry.Id) };
-                var result = _productSearchService.SearchAsync(criteria).Result;
+                var result = _productSearchService.SearchProductsAsync(criteria).Result;
 
                 if (result.TotalCount > 0)
                 {
-                    var product = _itemService.GetById(result.Items[0].Id, ItemResponseGroup.ItemLarge); // reload complete product now
+                    var product = _itemService.GetByIdAsync(result.Results[0].Id, ItemResponseGroup.ItemLarge.ToString()).Result; // reload complete product now
                     product.IsActive = false;
-                    _itemService.Update(new[] { product });
+                    _itemService.SaveChangesAsync(new[] { product });
 
                 }
+                */
             }
         }
 
         private CatalogProduct GetCatalogProduct(ProductEntity entry, out bool isNew)
         {
+            isNew = false;
+            return null;
+
+            /*
             // try finding catalog by name
             var catalog = _catalogService.GetCatalogsList().Where(x => x.Name.Equals(entry.Catalog, StringComparison.OrdinalIgnoreCase)).SingleOrDefault();
             if (catalog == null)
@@ -265,6 +271,7 @@ namespace VirtoCommerce.Contentful.Controllers.Api
             }
 
             return product;
+            */
         }
         #endregion
 
@@ -281,17 +288,17 @@ namespace VirtoCommerce.Contentful.Controllers.Api
             }
         }
 
-        [CheckPermission(Permission = ContentPredefinedPermissions.Delete)]
-        private void UnpublishContentPage(string storeId, LocalizedPageEntity entry)
+        [Authorize(Permissions.Delete)]
+        private async Task UnpublishContentPage(string storeId, LocalizedPageEntity entry)
         {
-            var storageProvider = _contentStorageProviderFactory($"Pages/{storeId}");
-            storageProvider.Remove(new[] { String.Format("{0}.md", entry.Id) });
+            var storageProvider = _contentStorageProviderFactory.CreateProvider($"Pages/{storeId}");
+            await storageProvider.RemoveAsync(new[] { String.Format("{0}.md", entry.Id) });
         }
 
-        [CheckPermission(Permission = ContentPredefinedPermissions.Create)]
+        [Authorize(Permissions.Create)]
         private void PublishContentPage(string storeId, LocalizedPageEntity entry)
         {
-            var storageProvider = _contentStorageProviderFactory($"Pages/{storeId}");
+            var storageProvider = _contentStorageProviderFactory.CreateProvider($"Pages/{storeId}");
 
             var serializer = new SerializerBuilder().Build();
             var yaml = serializer.Serialize(entry.Properties);
@@ -355,15 +362,6 @@ namespace VirtoCommerce.Contentful.Controllers.Api
 
             return EntryType.Unknown;
         }
-    }
-
-    public static class ContentPredefinedPermissions
-    {
-        public const string Read = "content:read",
-            Create = "content:create",
-            Access = "content:access",
-            Update = "content:update",
-            Delete = "content:delete";
     }
 
     public enum Operation
