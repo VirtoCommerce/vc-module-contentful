@@ -31,20 +31,22 @@ namespace VirtoCommerce.ContentfulModule.Web.Controllers.Api
         private readonly IStoreService _storeService;
         private readonly IItemService _itemService;
         private readonly ICatalogService _catalogService;
-        private readonly ICatalogSearchService _searchService;
+        private readonly ICatalogSearchService _catalogSearchService;
+        private readonly IProductIndexedSearchService _productIndexSearchService;
         private readonly IProductSearchService _productSearchService;
 
         public ContentfulController(IBlobContentStorageProviderFactory contentStorageProviderFactory, 
             IBlobUrlResolver urlResolver, IStoreService storeService, 
             IItemService itemService, ICatalogService catalogService, 
-            ICatalogSearchService searchService, IProductSearchService productSearchService)
+            ICatalogSearchService searchService, IProductIndexedSearchService productIndexSearchService, IProductSearchService productSearchService)
         {
             _itemService = itemService;
             _storeService = storeService;
             _contentStorageProviderFactory = contentStorageProviderFactory;
             _urlResolver = urlResolver;
             _catalogService = catalogService;
-            _searchService = searchService;
+            _catalogSearchService = searchService;
+            _productIndexSearchService = productIndexSearchService;
             _productSearchService = productSearchService;
         }
 
@@ -54,9 +56,9 @@ namespace VirtoCommerce.ContentfulModule.Web.Controllers.Api
         public async Task<ActionResult> WebhookHandlerAsync(string storeId)
         {
             // TODO: add check if user has store permissions
-            var json = new StreamReader(Request.Body).ReadToEndAsync().Result;
+            var json = await new StreamReader(Request.Body).ReadToEndAsync();
 
-            if (String.IsNullOrWhiteSpace(json))
+            if (string.IsNullOrWhiteSpace(json))
                 throw new NullReferenceException("http post body contains no json");
 
             var source = JsonConvert.DeserializeObject<JObject>(json);
@@ -69,14 +71,14 @@ namespace VirtoCommerce.ContentfulModule.Web.Controllers.Api
                 return Ok("Only entities named \"page*\" are supported");
 
             // now check if store actually exists, this is more expensive than checking page type, so do it later
-            var store = _storeService.GetByIdAsync(storeId).Result;
+            var store = await _storeService.GetByIdAsync(storeId);
             if (store == null)
             {
                 return NotFound();
             }
 
             // X-Contentful-Topic
-            var headers = this.Request.Headers;
+            var headers = Request.Headers;
 
             var operations = headers["X-Contentful-Topic"];
             var op = operations.FirstOrDefault();
@@ -89,7 +91,7 @@ namespace VirtoCommerce.ContentfulModule.Web.Controllers.Api
                 foreach (var lang in entry.Fields["title"].Keys)
                 {
                     var page = new LocalizedPageEntity(entry.SystemProperties.Id, lang, entry.Fields);
-                    RouteContentCall(action, storeId, page);
+                    await RouteContentCall(action, storeId, page);
                 }
 
                 return Ok(string.Format("Page updated successfully \"{0}\"", entry.SystemProperties.Id));
@@ -97,20 +99,20 @@ namespace VirtoCommerce.ContentfulModule.Web.Controllers.Api
             if (type == EntryType.Product) // create/update/delete products
             {
                 var product = new ProductEntity(entry.SystemProperties.Id, entry.Fields);
-                RouteProductCall(action, product);
+                await RouteProductCall(action, product);
                 return Ok(string.Format("Product updated successfully \"{0}\"", entry.SystemProperties.Id));
             }
 
-            return Ok(String.Format("No handler for type \"{0}\" found", entry.SystemProperties.ContentType.SystemProperties.Id));
+            return Ok(string.Format("No handler for type \"{0}\" found", entry.SystemProperties.ContentType.SystemProperties.Id));
         }
 
         #region Product
-        private void RouteProductCall(Operation op, ProductEntity entry)
+        private async Task RouteProductCall(Operation op, ProductEntity entry)
         {
             const string ReviewType = "FullReview";
             if (op == Operation.Publish) // publish
             {
-                var product = GetCatalogProduct(entry, out bool isNew);
+                var product = await GetCatalogProduct(entry);
                 product.IsActive = true;
 
                 if (entry.Content != null)
@@ -137,7 +139,7 @@ namespace VirtoCommerce.ContentfulModule.Web.Controllers.Api
                     {
                         foreach (var review in list)
                         {
-                            var existingReview = product.Reviews.Where(x => x.ReviewType == ReviewType && x.LanguageCode == review.LanguageCode).SingleOrDefault();
+                            var existingReview = product.Reviews.Where(x => x.ReviewType == ReviewType && x.LanguageCode == review.LanguageCode).FirstOrDefault();
                             if (existingReview == null)
                             {
                                 product.Reviews.Add(review);
@@ -196,66 +198,57 @@ namespace VirtoCommerce.ContentfulModule.Web.Controllers.Api
                     }
                 }
 
-                if (isNew)
-                {
-                    _itemService.SaveChangesAsync(new[] { product });
-                }
-                else
-                {
-                    _itemService.SaveChangesAsync(new[] { product });
-                }
+                // save product
+                await _itemService.SaveChangesAsync(new[] { product });
             }
             else if (op == Operation.Unpublish || op == Operation.Delete) // unpublish
             {
-                /*
-                var criteria = new CatalogIndexedSearchCriteria();
-                criteria.Terms = new[] { string.Format("contentfulid:{0}", entry.Id) };
-                var result = _productSearchService.SearchProductsAsync(criteria).Result;
+                var criteria = new ProductIndexedSearchCriteria
+                {
+                    Terms = new[] { string.Format("contentfulid:{0}", entry.Id) }
+                };
+                var result = await _productIndexSearchService.SearchAsync(criteria);
 
                 if (result.TotalCount > 0)
                 {
-                    var product = _itemService.GetByIdAsync(result.Results[0].Id, ItemResponseGroup.ItemLarge.ToString()).Result; // reload complete product now
+                    var product = await _itemService.GetByIdAsync(result.Items[0].Id, ItemResponseGroup.ItemLarge.ToString()); // reload complete product now
                     product.IsActive = false;
-                    _itemService.SaveChangesAsync(new[] { product });
+                    await _itemService.SaveChangesAsync(new[] { product });
 
                 }
-                */
             }
         }
 
-        private CatalogProduct GetCatalogProduct(ProductEntity entry, out bool isNew)
+        private async Task<CatalogProduct> GetCatalogProduct(ProductEntity entry)
         {
-            isNew = false;
-            return null;
-
-            /*
             // try finding catalog by name
-            var catalog = _catalogService.GetCatalogsList().Where(x => x.Name.Equals(entry.Catalog, StringComparison.OrdinalIgnoreCase)).SingleOrDefault();
+            var catalogResults = await _catalogSearchService.SearchCatalogsAsync(new CatalogSearchCriteria() { Take = 100 });
+            var catalog = catalogResults.Results.Where(x => x.Name.Equals(entry.Catalog, StringComparison.OrdinalIgnoreCase)).SingleOrDefault();
             if (catalog == null)
                 throw new ApplicationException("Catalog not found");
 
             // try finding product by id
+            var criteria = new ProductSearchCriteria
+            {
+                CatalogId = catalog.Id,
+                Skus = new string[] { entry.Sku }
+            };
+            //criteria.ResponseGroup = SearchResponseGroup.WithProducts;
+            //criteria.WithHidden = true;
 
-            var criteria = new SearchCriteria();
-            //criteria.CatalogId = catalog.Id;
-            criteria.Code = entry.Sku;
-            criteria.ResponseGroup = SearchResponseGroup.WithProducts;
-            criteria.WithHidden = true;
-            var results = _searchService.Search(criteria);
+            var results = await _productSearchService.SearchProductsAsync(criteria);
 
             CatalogProduct product = null; //= _itemService.GetById(entry.Id, ItemResponseGroup.ItemLarge);
 
-            if(results.ProductsTotalCount > 0)
+            if(results.Results.Count > 0)
             {
-                product = results.Products.SingleOrDefault();
-                product = _itemService.GetById(product.Id, ItemResponseGroup.ItemLarge); // reload complete product now
+                product = results.Results.SingleOrDefault();
+                product = await _itemService.GetByIdAsync(product.Id, ItemResponseGroup.ItemLarge.ToString()); // reload complete product now
             }
 
-            isNew = false;
 
             if (product == null)
             {
-                isNew = true;
                 product = new CatalogProduct()
                 {
                     CatalogId = catalog.Id,
@@ -271,20 +264,19 @@ namespace VirtoCommerce.ContentfulModule.Web.Controllers.Api
             }
 
             return product;
-            */
         }
         #endregion
 
         #region CMS
-        private void RouteContentCall(Operation op, string storeId, LocalizedPageEntity entry)
+        private async Task RouteContentCall(Operation op, string storeId, LocalizedPageEntity entry)
         {
             if (op == Operation.Undefined) // unpublish
             {
-                UnpublishContentPage(storeId, entry);
+                await UnpublishContentPage(storeId, entry);
             }
             else if (op == Operation.Publish) // publish
             {
-                PublishContentPage(storeId, entry);
+                await PublishContentPage(storeId, entry);
             }
         }
 
@@ -292,11 +284,11 @@ namespace VirtoCommerce.ContentfulModule.Web.Controllers.Api
         private async Task UnpublishContentPage(string storeId, LocalizedPageEntity entry)
         {
             var storageProvider = _contentStorageProviderFactory.CreateProvider($"Pages/{storeId}");
-            await storageProvider.RemoveAsync(new[] { String.Format("{0}.md", entry.Id) });
+            await storageProvider.RemoveAsync(new[] { string.Format("{0}.md", entry.Id) });
         }
 
         [Authorize(Permissions.Create)]
-        private void PublishContentPage(string storeId, LocalizedPageEntity entry)
+        private async Task PublishContentPage(string storeId, LocalizedPageEntity entry)
         {
             var storageProvider = _contentStorageProviderFactory.CreateProvider($"Pages/{storeId}");
 
@@ -308,7 +300,7 @@ namespace VirtoCommerce.ContentfulModule.Web.Controllers.Api
             contents.AppendLine(yaml);
             contents.AppendLine("---");
             contents.AppendLine(entry.Content);
-            using (var stream = storageProvider.OpenWrite(String.Format("{0}.md", entry.Id)))
+            using (var stream = storageProvider.OpenWrite(string.Format("{0}.md", entry.Id)))
             {
                 using (var memStream = new MemoryStream(Encoding.UTF8.GetB‌​ytes(contents.ToString())))
                 {

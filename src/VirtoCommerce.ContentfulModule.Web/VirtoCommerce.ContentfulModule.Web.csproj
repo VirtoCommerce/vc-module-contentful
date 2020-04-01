@@ -6,10 +6,10 @@
     </PropertyGroup>
     <ItemGroup>
       <PackageReference Include="Microsoft.AspNet.WebApi.Core" Version="5.2.7" />
-      <PackageReference Include="VirtoCommerce.CatalogModule.Data" Version="3.0.0-rc.3-001" />
+      <PackageReference Include="VirtoCommerce.CatalogModule.Data" Version="3.0.0-rc.5-002" />
       <PackageReference Include="VirtoCommerce.ContentModule.Core" Version="3.0.0-rc.4" />
       <PackageReference Include="VirtoCommerce.ContentModule.Data" Version="3.0.0-rc.4" />
-      <PackageReference Include="VirtoCommerce.Platform.Core" Version="3.0.0-rc4-0197" />
+      <PackageReference Include="VirtoCommerce.Platform.Core" Version="3.0.0-rc4-0220" />
       <PackageReference Include="YamlDotNet" Version="8.1.0" />
     </ItemGroup>
 </Project>
