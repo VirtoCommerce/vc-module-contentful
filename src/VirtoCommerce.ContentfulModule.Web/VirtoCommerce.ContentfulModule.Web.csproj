@@ -9,7 +9,7 @@
       <PackageReference Include="VirtoCommerce.CatalogModule.Data" Version="3.0.0-rc.5-002" />
       <PackageReference Include="VirtoCommerce.ContentModule.Core" Version="3.0.0-rc.4" />
       <PackageReference Include="VirtoCommerce.ContentModule.Data" Version="3.0.0-rc.4" />
-      <PackageReference Include="VirtoCommerce.Platform.Core" Version="3.0.0-rc4-0220" />
+      <PackageReference Include="VirtoCommerce.Platform.Core" Version="3.1.0-migrate-to-vc30-0001" />
       <PackageReference Include="YamlDotNet" Version="8.1.0" />
     </ItemGroup>
 </Project>
