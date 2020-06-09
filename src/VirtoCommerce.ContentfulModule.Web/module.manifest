@@ -6,7 +6,7 @@
     <platformVersion>3.0.0</platformVersion>
     <dependencies>
         <dependency id="VirtoCommerce.Content" version="3.0.0" />
-        <dependency id="VirtoCommerce.Catalog" version="3.0.0" />
+        <dependency id="VirtoCommerce.Catalog" version="3.0.3" />
     </dependencies>
 
     <title>Contentful Module (preview)</title>
