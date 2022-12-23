@@ -92,8 +92,8 @@ jobs:
         with:
           versionSuffix: ${{ env.VERSION_SUFFIX }}
 
-      #- name: SonarCloud Begin
-      #  uses: VirtoCommerce/vc-github-actions/sonar-scanner-begin@master
+      - name: SonarCloud Begin
+        uses: VirtoCommerce/vc-github-actions/sonar-scanner-begin@master
 
       - name: Build
         run: vc-build Compile
@@ -101,8 +101,8 @@ jobs:
       - name: Unit Tests
         run: vc-build Test -skip
 
-      #- name: SonarCloud End
-      #  uses: VirtoCommerce/vc-github-actions/sonar-scanner-end@master
+      - name: SonarCloud End
+        uses: VirtoCommerce/vc-github-actions/sonar-scanner-end@master
 
       - name: Quality Gate
         uses: VirtoCommerce/vc-github-actions/sonar-quality-gate@master
