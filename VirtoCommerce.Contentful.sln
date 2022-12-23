@@ -3,7 +3,7 @@ Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio Version 17
 VisualStudioVersion = 17.4.33205.214
 MinimumVisualStudioVersion = 10.0.40219.1
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "VirtoCommerce.Contentful", "src\VirtoCommerce.Contentful\VirtoCommerce.Contentful.csproj", "{798FE35E-7372-47E9-BC88-0552940CAFDC}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "VirtoCommerce.Contentful.Web", "src\VirtoCommerce.Contentful\VirtoCommerce.Contentful.Web.csproj", "{798FE35E-7372-47E9-BC88-0552940CAFDC}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
