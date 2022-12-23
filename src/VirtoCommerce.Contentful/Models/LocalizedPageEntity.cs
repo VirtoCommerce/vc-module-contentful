@@ -1,6 +1,6 @@
 ﻿using System.Collections.Generic;
 
-namespace VirtoCommerce.Contentful.Models.Virto
+namespace VirtoCommerce.Contentful.Models
 {
     public class LocalizedPageEntity
     {
@@ -24,11 +24,11 @@ namespace VirtoCommerce.Contentful.Models.Virto
                         {
                             if (key == "content")
                             {
-                                this.Content = properties[key][language].ToString();
+                                Content = properties[key][language].ToString();
                             }
                             else
                             {
-                                this.Properties.Add(key, properties[key][language].ToString());
+                                Properties.Add(key, properties[key][language].ToString());
                             }
                         }
                     }

@@ -1,7 +1,7 @@
 ﻿using System.Collections.Generic;
 using System.Linq;
 
-namespace VirtoCommerce.Contentful.Models.Virto
+namespace VirtoCommerce.Contentful.Models
 {
     public class ProductEntity
     {

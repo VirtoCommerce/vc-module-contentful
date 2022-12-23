@@ -14,6 +14,7 @@
 	</ItemGroup>
 
 	<ItemGroup>
+		<PackageReference Include="contentful.csharp" Version="7.2.2" />
 		<PackageReference Include="Microsoft.AspNetCore.Http" Version="2.2.0" />
 		<PackageReference Include="VirtoCommerce.CatalogModule.Data" Version="3.200.0" />
 		<PackageReference Include="VirtoCommerce.ContentModule.Data" Version="3.200.0" />
