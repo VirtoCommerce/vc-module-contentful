@@ -10,7 +10,7 @@
   </authors>
   <requireLicenseAcceptance>false</requireLicenseAcceptance>
   <assemblyFile>VirtoCommerce.Contentful.dll</assemblyFile>
-  <moduleType>VirtoCommerce.Contentful.Module, VirtoCommerce.Contentful</moduleType>
+  <moduleType>VirtoCommerce.Contentful.Web.Module, VirtoCommerce.Contentful.Web</moduleType>
   <dependencies>
     <dependency id="VirtoCommerce.Core" version="3.200.0" />
     <dependency id="VirtoCommerce.Content" version="3.200.0" />

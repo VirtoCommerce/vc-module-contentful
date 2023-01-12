@@ -1,5 +1,4 @@
-﻿using Contentful.Core;
-using Contentful.Core.Configuration;
+﻿using Contentful.Core.Configuration;
 using Contentful.Core.Models;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -16,430 +15,429 @@ using VirtoCommerce.CatalogModule.Core.Model;
 using VirtoCommerce.CatalogModule.Core.Model.Search;
 using VirtoCommerce.CatalogModule.Core.Search;
 using VirtoCommerce.CatalogModule.Core.Services;
-using VirtoCommerce.Contentful.Core;
-using VirtoCommerce.Contentful.Models;
+using VirtoCommerce.Contentful.Web.Core;
+using VirtoCommerce.Contentful.Web.Models;
 using VirtoCommerce.ContentModule.Core.Services;
 using VirtoCommerce.Platform.Core.GenericCrud;
 using VirtoCommerce.StoreModule.Core.Model;
 using VirtoCommerce.StoreModule.Core.Services;
 using YamlDotNet.Serialization;
 
-namespace VirtoCommerce.Contentful.Controllers.Api
+namespace VirtoCommerce.Contentful.Web.Controllers.Api;
+
+[Authorize]
+[Route("api/contentful")]
+public class ContentfulController : Controller
 {
-    [Authorize]
-    [Route("api/contentful")]
-    public class ContentfulController : Controller
+    private readonly IBlobContentStorageProviderFactory _blobContentStorageProviderFactory;
+    private readonly ICrudService<Store> _storeService;
+    private readonly IItemService _itemService;
+    private readonly ICatalogService _catalogService;
+    private readonly IProductSearchService _productSearchService;
+
+    public ContentfulController(
+        IBlobContentStorageProviderFactory blobContentStorageProviderFactory,
+        IStoreService storeService,
+        IItemService itemService,
+        ICatalogService catalogService,
+        IProductSearchService productSearchService
+    )
     {
-        private readonly IBlobContentStorageProviderFactory _blobContentStorageProviderFactory;
-        private readonly ICrudService<Store> _storeService;
-        private readonly IItemService _itemService;
-        private readonly ICatalogService _catalogService;
-        private readonly IProductSearchService _productSearchService;
+        _itemService = itemService;
+        _storeService = (ICrudService<Store>)storeService;
+        _blobContentStorageProviderFactory = blobContentStorageProviderFactory;
+        _catalogService = catalogService;
+        _productSearchService = productSearchService;
+    }
 
-        public ContentfulController(
-            IBlobContentStorageProviderFactory blobContentStorageProviderFactory,
-            IStoreService storeService,
-            IItemService itemService,
-            ICatalogService catalogService,
-            IProductSearchService productSearchService
-        )
+    // GET: api/contentful/{storeid}
+    [HttpPost]
+    [Route("{storeId}")]
+    public async Task<IActionResult> WebhookHandlerAsync(string storeId)
+    {
+        // TODO: add check if user has store permissions
+        using var reader = new StreamReader(Request.Body);
+        var json = await reader.ReadToEndAsync();
+
+        var source = JsonConvert.DeserializeObject<JObject>(json);
+
+        var entry = GetEntry<Entry<Dictionary<string, Dictionary<string, object>>>>(source);
+
+        var type = GetEntryType(entry.SystemProperties.ContentType.SystemProperties.Id);
+
+        if (type == EntryType.Unknown)
+            return Ok("Only entities named \"page*\" are supported");
+
+        // now check if store actually exists, this is more expensive than checking page type, so do it later
+        var store = await _storeService.GetByIdAsync(storeId);
+        if (store == null)
         {
-            _itemService = itemService;
-            _storeService = (ICrudService<Store>)storeService;
-            _blobContentStorageProviderFactory = blobContentStorageProviderFactory;
-            _catalogService = catalogService;
-            _productSearchService = productSearchService;
+            return NotFound();
         }
 
-        // GET: api/contentful/{storeid}
-        [HttpPost]
-        [Route("{storeId}")]
-        public async Task<IActionResult> WebhookHandlerAsync(string storeId)
+        // X-Contentful-Topic
+        var headers = Request.Headers;
+
+        if (headers.TryGetValue("X-Contentful-Topic", out var operations))
         {
-            // TODO: add check if user has store permissions
-            using var reader = new StreamReader(Request.Body);
-            var json = await reader.ReadToEndAsync();
+            var op = operations.FirstOrDefault();
+            var action = GetAction(op);
 
-            var source = JsonConvert.DeserializeObject<JObject>(json);
-
-            var entry = GetEntry<Entry<Dictionary<string, Dictionary<string, object>>>>(source);
-
-            var type = GetEntryType(entry.SystemProperties.ContentType.SystemProperties.Id);
-
-            if (type == EntryType.Unknown)
-                return Ok("Only entities named \"page*\" are supported");
-
-            // now check if store actually exists, this is more expensive than checking page type, so do it later
-            var store = await _storeService.GetByIdAsync(storeId);
-            if (store == null)
+            // TODO: get language from the response, add support for multiple languages
+            if (type == EntryType.Page) // create/update/delete CMS pages
             {
-                return NotFound();
-            }
-
-            // X-Contentful-Topic
-            var headers = Request.Headers;
-
-            if (headers.TryGetValue("X-Contentful-Topic", out var operations))
-            {
-                var op = operations.FirstOrDefault();
-                var action = GetAction(op);
-
-                // TODO: get language from the response, add support for multiple languages
-                if (type == EntryType.Page) // create/update/delete CMS pages
+                // go through all the languages
+                if (!entry.Fields.TryGetValue("pageName", out var fields) && !entry.Fields.TryGetValue("title", out fields))
                 {
-                    // go through all the languages
-                    if (!entry.Fields.TryGetValue("pageName", out var fields) && !entry.Fields.TryGetValue("title", out fields))
-                    {
-                        return Ok($"Not found field with the name pageName or title");
-                    }
-                    else
-                    {
-                        foreach (var lang in fields.Keys)
-                        {
-                            var page = new LocalizedPageEntity(entry.SystemProperties.Id, lang, entry.Fields);
-                            await RouteContentCall(action, storeId, page);
-                        }
-                    }
-
-                    return Ok(string.Format("Page updated successfully \"{0}\"", entry.SystemProperties.Id));
+                    return Ok($"Not found field with the name pageName or title");
                 }
-                if (type == EntryType.Product) // create/update/delete products
+                else
                 {
-                    var product = new ProductEntity(entry.SystemProperties.Id, entry.Fields);
-                    await RouteProductCall(action, product);
-                    return Ok(string.Format("Product updated successfully \"{0}\"", entry.SystemProperties.Id));
+                    foreach (var lang in fields.Keys)
+                    {
+                        var page = new LocalizedPageEntity(entry.SystemProperties.Id, lang, entry.Fields);
+                        await RouteContentCall(action, storeId, page);
+                    }
                 }
 
+                return Ok(string.Format("Page updated successfully \"{0}\"", entry.SystemProperties.Id));
             }
-            return Ok($"No handler for type \"{entry.SystemProperties.ContentType.SystemProperties.Id}\" found");
+            if (type == EntryType.Product) // create/update/delete products
+            {
+                var product = new ProductEntity(entry.SystemProperties.Id, entry.Fields);
+                await RouteProductCall(action, product);
+                return Ok(string.Format("Product updated successfully \"{0}\"", entry.SystemProperties.Id));
+            }
+
         }
+        return Ok($"No handler for type \"{entry.SystemProperties.ContentType.SystemProperties.Id}\" found");
+    }
 
-        #region Product
-        private async Task RouteProductCall(Operation op, ProductEntity entry)
+    #region Product
+    private async Task RouteProductCall(Operation op, ProductEntity entry)
+    {
+        const string ReviewType = "FullReview";
+        if (op == Operation.Publish) // publish
         {
-            const string ReviewType = "FullReview";
-            if (op == Operation.Publish) // publish
+            var (product, isNew) = await GetCatalogProductAsync(entry);
+            product.IsActive = true;
+
+            if (entry.Content != null)
             {
-                var (product, isNew) = await GetCatalogProductAsync(entry);
-                product.IsActive = true;
-
-                if (entry.Content != null)
+                var list = new List<EditorialReview>();
+                foreach (var lang in entry.Content.Keys)
                 {
-                    var list = new List<EditorialReview>();
-                    foreach (var lang in entry.Content.Keys)
+                    var review = new EditorialReview
                     {
-                        var review = new EditorialReview
-                        {
-                            Content = entry.Content[lang],
-                            ReviewType = ReviewType,
-                            LanguageCode = lang
-                        };
+                        Content = entry.Content[lang],
+                        ReviewType = ReviewType,
+                        LanguageCode = lang
+                    };
 
-                        list.Add(review);
-                    }
+                    list.Add(review);
+                }
 
-                    // add new reviews or update existing ones
-                    if (product.Reviews == null)
+                // add new reviews or update existing ones
+                if (product.Reviews == null)
+                {
+                    product.Reviews = list.ToArray();
+                }
+                else
+                {
+                    foreach (var review in list)
                     {
-                        product.Reviews = list.ToArray();
-                    }
-                    else
-                    {
-                        foreach (var review in list)
+                        var existingReview = product.Reviews.Where(x => x.ReviewType == ReviewType && x.LanguageCode == review.LanguageCode).SingleOrDefault();
+                        if (existingReview == null)
                         {
-                            var existingReview = product.Reviews.Where(x => x.ReviewType == ReviewType && x.LanguageCode == review.LanguageCode).SingleOrDefault();
-                            if (existingReview == null)
-                            {
-                                product.Reviews.Add(review);
-                            }
-                            else
-                            {
-                                existingReview.Content = review.Content;
-                            }
+                            product.Reviews.Add(review);
+                        }
+                        else
+                        {
+                            existingReview.Content = review.Content;
                         }
                     }
                 }
+            }
 
-                // now add all the properties
-                if (entry.Properties != null)
+            // now add all the properties
+            if (entry.Properties != null)
+            {
+                var propList = new List<Property>();
+                foreach (var key in entry.Properties.Keys)
                 {
-                    var propList = new List<Property>();
-                    foreach (var key in entry.Properties.Keys)
+                    var prop = entry.Properties[key];
+
+                    var newProperty = new Property
                     {
-                        var prop = entry.Properties[key];
+                        Name = key,
+                        Values = new List<PropertyValue>()
+                    };
 
-                        var newProperty = new Property
+                    foreach (var lang in prop.Keys)
+                    {
+                        newProperty.Values.Add(new PropertyValue
                         {
-                            Name = key,
-                            Values = new List<PropertyValue>()
-                        };
-
-                        foreach (var lang in prop.Keys)
-                        {
-                            newProperty.Values.Add(new PropertyValue
-                            {
-                                LanguageCode = lang,
-                                PropertyName = key,
-                                Value = prop[lang]
-                            });
-                        }
-                        propList.Add(newProperty);
+                            LanguageCode = lang,
+                            PropertyName = key,
+                            Value = prop[lang]
+                        });
                     }
+                    propList.Add(newProperty);
+                }
 
-                    propList.Add(new Property()
+                propList.Add(new Property()
+                {
+                    Name = "contentfulid",
+                    Values = new List<PropertyValue>
                     {
-                        Name = "contentfulid",
-                        Values = new List<PropertyValue>
+                        new PropertyValue
                         {
-                            new PropertyValue
-                            {
-                                PropertyName = "contentfulid",
-                                Value = entry.Id
-                            }
+                            PropertyName = "contentfulid",
+                            Value = entry.Id
                         }
-                    });
-
-                    // add new properties or update existing ones
-                    if (product.Properties == null)
-                    {
-                        product.Properties = propList.ToArray();
                     }
-                    else
+                });
+
+                // add new properties or update existing ones
+                if (product.Properties == null)
+                {
+                    product.Properties = propList.ToArray();
+                }
+                else
+                {
+                    foreach (var property in propList)
                     {
-                        foreach (var property in propList)
+                        var existingProperty = product.Properties.Where(x => x.Name == property.Name).FirstOrDefault();
+                        if (existingProperty == null)
                         {
-                            var existingProperty = product.Properties.Where(x => x.Name == property.Name).FirstOrDefault();
-                            if (existingProperty == null)
+                            product.Properties.Add(property);
+                        }
+                        else
+                        {
+                            foreach (var value in property.Values)
                             {
-                                product.Properties.Add(property);
-                            }
-                            else
-                            {
-                                foreach (var value in property.Values)
+                                var existingPropertyValue = existingProperty.Values.Where(x => x.PropertyName == value.PropertyName && x.LanguageCode == value.LanguageCode).SingleOrDefault();
+                                if (existingPropertyValue == null)
                                 {
-                                    var existingPropertyValue = existingProperty.Values.Where(x => x.PropertyName == value.PropertyName && x.LanguageCode == value.LanguageCode).SingleOrDefault();
-                                    if (existingPropertyValue == null)
-                                    {
-                                        existingProperty.Values.Add(value);
-                                    }
-                                    else
-                                    {
-                                        existingPropertyValue.Value = value.Value;
-                                    }
+                                    existingProperty.Values.Add(value);
+                                }
+                                else
+                                {
+                                    existingPropertyValue.Value = value.Value;
                                 }
                             }
                         }
-
-                        //foreach (var propertyValue in propList)
-                        //{
-                        //    var existingPropertyValue = product.PropertyValues.Where(x => x.PropertyName == propertyValue.PropertyName && x.LanguageCode == propertyValue.LanguageCode).SingleOrDefault();
-                        //    if (existingPropertyValue == null)
-                        //    {
-                        //        product.PropertyValues.Add(propertyValue);
-                        //    }
-                        //    else
-                        //    {
-                        //        existingPropertyValue.Value = propertyValue.Value;
-                        //    }
-                        //}
                     }
-                }
 
-                await _itemService.SaveChangesAsync(new[] { product });
-            }
-            else if (op == Operation.Unpublish || op == Operation.Delete) // unpublish
-            {
-                var criteria = new ProductSearchCriteria
-                {
-                    SearchPhrase = $"contentfulid:{entry.Id}"
-                };
-                var result = await _productSearchService.SearchProductsAsync(criteria);
-
-                if (result.TotalCount > 0)
-                {
-                    //var product = await _itemService.GetByIdAsync(result.Items[0].Id, ItemResponseGroup.ItemLarge); // reload complete product now
-                    //product.IsActive = false;
-                    await _itemService.DeleteAsync(new[] { result.Results[0].Id });
-
+                    //foreach (var propertyValue in propList)
+                    //{
+                    //    var existingPropertyValue = product.PropertyValues.Where(x => x.PropertyName == propertyValue.PropertyName && x.LanguageCode == propertyValue.LanguageCode).SingleOrDefault();
+                    //    if (existingPropertyValue == null)
+                    //    {
+                    //        product.PropertyValues.Add(propertyValue);
+                    //    }
+                    //    else
+                    //    {
+                    //        existingPropertyValue.Value = propertyValue.Value;
+                    //    }
+                    //}
                 }
             }
+
+            await _itemService.SaveChangesAsync(new[] { product });
         }
-
-        private async Task<(CatalogProduct, bool)> GetCatalogProductAsync(ProductEntity entry)
+        else if (op == Operation.Unpublish || op == Operation.Delete) // unpublish
         {
-            // try finding catalog by name
-            var catalog = (await _catalogService.GetByIdsAsync(Array.Empty<string>(), null))
-                .Where(x => x.Name.Equals(entry.Catalog, StringComparison.OrdinalIgnoreCase))
-                .SingleOrDefault();
-            if (catalog == null)
-                throw new ApplicationException("Catalog not found");
-
-            // try finding product by id
-
             var criteria = new ProductSearchCriteria
             {
-                Skus = new List<string>() { entry.Sku },
-                // CatalogId = catalog.Id ??
-                ResponseGroup = ItemResponseGroup.ItemLarge.ToString(),
-                SearchInChildren = true
+                SearchPhrase = $"contentfulid:{entry.Id}"
             };
-
             var result = await _productSearchService.SearchProductsAsync(criteria);
 
             if (result.TotalCount > 0)
             {
-                var item = result.Results.First();
-                item.Name = entry.Name;
-                return (item, false);
+                //var product = await _itemService.GetByIdAsync(result.Items[0].Id, ItemResponseGroup.ItemLarge); // reload complete product now
+                //product.IsActive = false;
+                await _itemService.DeleteAsync(new[] { result.Results[0].Id });
+
             }
-            var product = new CatalogProduct
-            {
-                CatalogId = catalog.Id,
-                Id = entry.Sku,
-                Name = entry.Name,
-                Code = entry.Sku
-            };
-            return (product, true);
-            //var criteria = new CatalogSearchCriteria();
-            ////criteria.CatalogId = catalog.Id;
-            //criteria.Code = entry.Sku;
-            //criteria.ResponseGroup = SearchCriteriaBase SearchResponseGroup.WithProducts;
-            //criteria.SearchInChildren = true;
-            //var results = await _searchService.SearchCatalogsAsync(criteria);
-
-            //    CatalogProduct product = null; //= _itemService.GetById(entry.Id, ItemResponseGroup.ItemLarge);
-
-            //    if (results.ProductsTotalCount > 0)
-            //    {
-            //        product = results.Products.SingleOrDefault();
-            //        product = _itemService.GetById(product.Id, ItemResponseGroup.ItemLarge); // reload complete product now
-            //    }
-
-            //    isNew = false;
-
-            //    if (product == null)
-            //    {
-            //        isNew = true;
-            //        product = new CatalogProduct()
-            //        {
-            //            CatalogId = catalog.Id,
-            //            Id = entry.Sku,
-            //            Name = entry.Name,
-            //            Code = entry.Sku
-            //        };
-            //    }
-            //    else
-            //    {
-            //        // change title
-            //        product.Name = entry.Name;
-            //    }
-
-            //    return product;
         }
-        #endregion
+    }
 
-        #region CMS
-        private async Task RouteContentCall(Operation op, string storeId, LocalizedPageEntity entry)
+    private async Task<(CatalogProduct, bool)> GetCatalogProductAsync(ProductEntity entry)
+    {
+        // try finding catalog by name
+        var catalog = (await _catalogService.GetByIdsAsync(Array.Empty<string>(), null))
+            .Where(x => x.Name.Equals(entry.Catalog, StringComparison.OrdinalIgnoreCase))
+            .SingleOrDefault();
+        if (catalog == null)
+            throw new ApplicationException("Catalog not found");
+
+        // try finding product by id
+
+        var criteria = new ProductSearchCriteria
         {
-            if (op == Operation.Undefined) // unpublish
-            {
-                await UnpublishContentPage(storeId, entry);
-            }
-            else if (op == Operation.Publish) // publish
-            {
-                await PublishContentPage(storeId, entry);
-            }
-        }
+            Skus = new List<string>() { entry.Sku },
+            // CatalogId = catalog.Id ??
+            ResponseGroup = ItemResponseGroup.ItemLarge.ToString(),
+            SearchInChildren = true
+        };
 
-        [Authorize(ContentPredefinedPermissions.Delete)]
-        private async Task UnpublishContentPage(string storeId, LocalizedPageEntity entry)
+        var result = await _productSearchService.SearchProductsAsync(criteria);
+
+        if (result.TotalCount > 0)
         {
-            var storageProvider = _blobContentStorageProviderFactory.CreateProvider($"Pages/{storeId}");
-            await storageProvider.RemoveAsync(new[] { $"{entry.Id}.md" });
+            var item = result.Results.First();
+            item.Name = entry.Name;
+            return (item, false);
         }
-
-        [Authorize(ContentPredefinedPermissions.Create)]
-        private async Task PublishContentPage(string storeId, LocalizedPageEntity entry)
+        var product = new CatalogProduct
         {
-            var storageProvider = _blobContentStorageProviderFactory.CreateProvider($"Pages/{storeId}");
+            CatalogId = catalog.Id,
+            Id = entry.Sku,
+            Name = entry.Name,
+            Code = entry.Sku
+        };
+        return (product, true);
+        //var criteria = new CatalogSearchCriteria();
+        ////criteria.CatalogId = catalog.Id;
+        //criteria.Code = entry.Sku;
+        //criteria.ResponseGroup = SearchCriteriaBase SearchResponseGroup.WithProducts;
+        //criteria.SearchInChildren = true;
+        //var results = await _searchService.SearchCatalogsAsync(criteria);
 
-            var serializer = new SerializerBuilder().Build();
-            var yaml = serializer.Serialize(entry.Properties);
+        //    CatalogProduct product = null; //= _itemService.GetById(entry.Id, ItemResponseGroup.ItemLarge);
 
-            var contents = new StringBuilder();
-            contents.AppendLine("---");
-            contents.AppendLine(yaml);
-            contents.AppendLine("---");
-            var content = await GetContentAsync(entry.Content);
-            contents.AppendLine(content);
-            using var stream = storageProvider.OpenWrite($"{entry.Id}.md");
-            using var memStream = new MemoryStream(Encoding.UTF8.GetB‌​ytes(contents.ToString()));
-            await memStream.CopyToAsync(stream);
-        }
+        //    if (results.ProductsTotalCount > 0)
+        //    {
+        //        product = results.Products.SingleOrDefault();
+        //        product = _itemService.GetById(product.Id, ItemResponseGroup.ItemLarge); // reload complete product now
+        //    }
 
-        private static async Task<string> GetContentAsync(string value)
+        //    isNew = false;
+
+        //    if (product == null)
+        //    {
+        //        isNew = true;
+        //        product = new CatalogProduct()
+        //        {
+        //            CatalogId = catalog.Id,
+        //            Id = entry.Sku,
+        //            Name = entry.Name,
+        //            Code = entry.Sku
+        //        };
+        //    }
+        //    else
+        //    {
+        //        // change title
+        //        product.Name = entry.Name;
+        //    }
+
+        //    return product;
+    }
+    #endregion
+
+    #region CMS
+    private async Task RouteContentCall(Operation op, string storeId, LocalizedPageEntity entry)
+    {
+        if (op == Operation.Undefined) // unpublish
         {
-            try
-            {
-                var document = JsonConvert.DeserializeObject<Document>(value, new JsonSerializerSettings
-                {
-                    Converters = new JsonConverter[] { new AssetJsonConverter(), new ContentJsonConverter() }
-                });
-                var renderer = new HtmlRenderer();
-                var result = await renderer.ToHtml(document);
-                return result;
-            }
-            catch
-            {
-                return value;
-            }
+            await UnpublishContentPage(storeId, entry);
         }
-
-        #endregion
-
-        private static T GetEntry<T>(JObject source)
+        else if (op == Operation.Publish) // publish
         {
-            T ob;
-
-            if (typeof(IContentfulResource).GetTypeInfo().IsAssignableFrom(typeof(T).GetTypeInfo()))
-            {
-                ob = source.ToObject<T>();
-            }
-            else
-            {
-                var json = source;
-
-                //move the sys object beneath the fields to make serialization more logical for the end user.
-                var sys = json.SelectToken("$.sys");
-                var fields = json.SelectToken("$.fields");
-                fields["sys"] = sys;
-                ob = fields.ToObject<T>();
-            }
-            return ob;
+            await PublishContentPage(storeId, entry);
         }
+    }
 
-        private static Operation GetAction(string topic)
+    [Authorize(ContentPredefinedPermissions.Delete)]
+    private async Task UnpublishContentPage(string storeId, LocalizedPageEntity entry)
+    {
+        var storageProvider = _blobContentStorageProviderFactory.CreateProvider($"Pages/{storeId}");
+        await storageProvider.RemoveAsync(new[] { $"{entry.Id}.md" });
+    }
+
+    [Authorize(ContentPredefinedPermissions.Create)]
+    private async Task PublishContentPage(string storeId, LocalizedPageEntity entry)
+    {
+        var storageProvider = _blobContentStorageProviderFactory.CreateProvider($"Pages/{storeId}");
+
+        var serializer = new SerializerBuilder().Build();
+        var yaml = serializer.Serialize(entry.Properties);
+
+        var contents = new StringBuilder();
+        contents.AppendLine("---");
+        contents.AppendLine(yaml);
+        contents.AppendLine("---");
+        var content = await GetContentAsync(entry.Content);
+        contents.AppendLine(content);
+        using var stream = storageProvider.OpenWrite($"{entry.Id}.md");
+        using var memStream = new MemoryStream(Encoding.UTF8.GetB‌​ytes(contents.ToString()));
+        await memStream.CopyToAsync(stream);
+    }
+
+    private static async Task<string> GetContentAsync(string value)
+    {
+        try
         {
-            if (topic.Equals("ContentManagement.Entry.unpublish")) // unpublish
+            var document = JsonConvert.DeserializeObject<Document>(value, new JsonSerializerSettings
             {
-                return Operation.Unpublish;
-            }
-            else if (topic.Equals("ContentManagement.Entry.publish")) // publish
-            {
-                return Operation.Publish;
-            }
-
-            return Operation.Undefined;
+                Converters = new JsonConverter[] { new AssetJsonConverter(), new ContentJsonConverter() }
+            });
+            var renderer = new HtmlRenderer();
+            var result = await renderer.ToHtml(document);
+            return result;
         }
-
-        private static EntryType GetEntryType(string entityType)
+        catch
         {
-            if (entityType.StartsWith("page")) // we only support pages for now
-                return EntryType.Page;
-            if (entityType.StartsWith("product"))
-                return EntryType.Product;
-
-            return EntryType.Unknown;
+            return value;
         }
+    }
+
+    #endregion
+
+    private static T GetEntry<T>(JObject source)
+    {
+        T ob;
+
+        if (typeof(IContentfulResource).GetTypeInfo().IsAssignableFrom(typeof(T).GetTypeInfo()))
+        {
+            ob = source.ToObject<T>();
+        }
+        else
+        {
+            var json = source;
+
+            //move the sys object beneath the fields to make serialization more logical for the end user.
+            var sys = json.SelectToken("$.sys");
+            var fields = json.SelectToken("$.fields");
+            fields["sys"] = sys;
+            ob = fields.ToObject<T>();
+        }
+        return ob;
+    }
+
+    private static Operation GetAction(string topic)
+    {
+        if (topic.Equals("ContentManagement.Entry.unpublish")) // unpublish
+        {
+            return Operation.Unpublish;
+        }
+        else if (topic.Equals("ContentManagement.Entry.publish")) // publish
+        {
+            return Operation.Publish;
+        }
+
+        return Operation.Undefined;
+    }
+
+    private static EntryType GetEntryType(string entityType)
+    {
+        if (entityType.StartsWith("page")) // we only support pages for now
+            return EntryType.Page;
+        if (entityType.StartsWith("product"))
+            return EntryType.Product;
+
+        return EntryType.Unknown;
     }
 }
