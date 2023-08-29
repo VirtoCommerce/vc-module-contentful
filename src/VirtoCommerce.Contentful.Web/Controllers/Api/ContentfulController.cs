@@ -1,5 +1,4 @@
-﻿using Contentful.Core;
-using Contentful.Core.Configuration;
+﻿using Contentful.Core.Configuration;
 using Contentful.Core.Models;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -19,8 +18,7 @@ using VirtoCommerce.CatalogModule.Core.Services;
 using VirtoCommerce.Contentful.Core;
 using VirtoCommerce.Contentful.Models;
 using VirtoCommerce.ContentModule.Core.Services;
-using VirtoCommerce.Platform.Core.GenericCrud;
-using VirtoCommerce.StoreModule.Core.Model;
+using VirtoCommerce.Platform.Core.Common;
 using VirtoCommerce.StoreModule.Core.Services;
 using YamlDotNet.Serialization;
 
@@ -31,7 +29,7 @@ namespace VirtoCommerce.Contentful.Controllers.Api
     public class ContentfulController : Controller
     {
         private readonly IBlobContentStorageProviderFactory _blobContentStorageProviderFactory;
-        private readonly ICrudService<Store> _storeService;
+        private readonly IStoreService _storeService;
         private readonly IItemService _itemService;
         private readonly ICatalogService _catalogService;
         private readonly IProductSearchService _productSearchService;
@@ -45,7 +43,7 @@ namespace VirtoCommerce.Contentful.Controllers.Api
         )
         {
             _itemService = itemService;
-            _storeService = (ICrudService<Store>)storeService;
+            _storeService = storeService;
             _blobContentStorageProviderFactory = blobContentStorageProviderFactory;
             _catalogService = catalogService;
             _productSearchService = productSearchService;
@@ -147,7 +145,7 @@ namespace VirtoCommerce.Contentful.Controllers.Api
                     {
                         foreach (var review in list)
                         {
-                            var existingReview = product.Reviews.Where(x => x.ReviewType == ReviewType && x.LanguageCode == review.LanguageCode).SingleOrDefault();
+                            var existingReview = product.Reviews.SingleOrDefault(x => x.ReviewType == ReviewType && x.LanguageCode == review.LanguageCode);
                             if (existingReview == null)
                             {
                                 product.Reviews.Add(review);
@@ -208,7 +206,7 @@ namespace VirtoCommerce.Contentful.Controllers.Api
                     {
                         foreach (var property in propList)
                         {
-                            var existingProperty = product.Properties.Where(x => x.Name == property.Name).FirstOrDefault();
+                            var existingProperty = product.Properties.FirstOrDefault(x => x.Name == property.Name);
                             if (existingProperty == null)
                             {
                                 product.Properties.Add(property);
@@ -217,7 +215,7 @@ namespace VirtoCommerce.Contentful.Controllers.Api
                             {
                                 foreach (var value in property.Values)
                                 {
-                                    var existingPropertyValue = existingProperty.Values.Where(x => x.PropertyName == value.PropertyName && x.LanguageCode == value.LanguageCode).SingleOrDefault();
+                                    var existingPropertyValue = existingProperty.Values.SingleOrDefault(x => x.PropertyName == value.PropertyName && x.LanguageCode == value.LanguageCode);
                                     if (existingPropertyValue == null)
                                     {
                                         existingProperty.Values.Add(value);
@@ -229,19 +227,6 @@ namespace VirtoCommerce.Contentful.Controllers.Api
                                 }
                             }
                         }
-
-                        //foreach (var propertyValue in propList)
-                        //{
-                        //    var existingPropertyValue = product.PropertyValues.Where(x => x.PropertyName == propertyValue.PropertyName && x.LanguageCode == propertyValue.LanguageCode).SingleOrDefault();
-                        //    if (existingPropertyValue == null)
-                        //    {
-                        //        product.PropertyValues.Add(propertyValue);
-                        //    }
-                        //    else
-                        //    {
-                        //        existingPropertyValue.Value = propertyValue.Value;
-                        //    }
-                        //}
                     }
                 }
 
@@ -253,12 +238,10 @@ namespace VirtoCommerce.Contentful.Controllers.Api
                 {
                     SearchPhrase = $"contentfulid:{entry.Id}"
                 };
-                var result = await _productSearchService.SearchProductsAsync(criteria);
+                var result = await _productSearchService.SearchAsync(criteria);
 
                 if (result.TotalCount > 0)
                 {
-                    //var product = await _itemService.GetByIdAsync(result.Items[0].Id, ItemResponseGroup.ItemLarge); // reload complete product now
-                    //product.IsActive = false;
                     await _itemService.DeleteAsync(new[] { result.Results[0].Id });
 
                 }
@@ -272,7 +255,9 @@ namespace VirtoCommerce.Contentful.Controllers.Api
                 .Where(x => x.Name.Equals(entry.Catalog, StringComparison.OrdinalIgnoreCase))
                 .SingleOrDefault();
             if (catalog == null)
-                throw new ApplicationException("Catalog not found");
+            {
+                throw new Exception($"Catalog `{entry.Catalog}` not found");
+            }
 
             // try finding product by id
 
@@ -284,11 +269,11 @@ namespace VirtoCommerce.Contentful.Controllers.Api
                 SearchInChildren = true
             };
 
-            var result = await _productSearchService.SearchProductsAsync(criteria);
+            var result = await _productSearchService.SearchAsync(criteria);
 
             if (result.TotalCount > 0)
             {
-                var item = result.Results.First();
+                var item = result.Results[0];
                 item.Name = entry.Name;
                 return (item, false);
             }
@@ -300,41 +285,6 @@ namespace VirtoCommerce.Contentful.Controllers.Api
                 Code = entry.Sku
             };
             return (product, true);
-            //var criteria = new CatalogSearchCriteria();
-            ////criteria.CatalogId = catalog.Id;
-            //criteria.Code = entry.Sku;
-            //criteria.ResponseGroup = SearchCriteriaBase SearchResponseGroup.WithProducts;
-            //criteria.SearchInChildren = true;
-            //var results = await _searchService.SearchCatalogsAsync(criteria);
-
-            //    CatalogProduct product = null; //= _itemService.GetById(entry.Id, ItemResponseGroup.ItemLarge);
-
-            //    if (results.ProductsTotalCount > 0)
-            //    {
-            //        product = results.Products.SingleOrDefault();
-            //        product = _itemService.GetById(product.Id, ItemResponseGroup.ItemLarge); // reload complete product now
-            //    }
-
-            //    isNew = false;
-
-            //    if (product == null)
-            //    {
-            //        isNew = true;
-            //        product = new CatalogProduct()
-            //        {
-            //            CatalogId = catalog.Id,
-            //            Id = entry.Sku,
-            //            Name = entry.Name,
-            //            Code = entry.Sku
-            //        };
-            //    }
-            //    else
-            //    {
-            //        // change title
-            //        product.Name = entry.Name;
-            //    }
-
-            //    return product;
         }
         #endregion
 
@@ -352,10 +302,10 @@ namespace VirtoCommerce.Contentful.Controllers.Api
         }
 
         [Authorize(ContentPredefinedPermissions.Delete)]
-        private async Task UnpublishContentPage(string storeId, LocalizedPageEntity entry)
+        private Task UnpublishContentPage(string storeId, LocalizedPageEntity entry)
         {
             var storageProvider = _blobContentStorageProviderFactory.CreateProvider($"Pages/{storeId}");
-            await storageProvider.RemoveAsync(new[] { $"{entry.Id}.md" });
+            return storageProvider.RemoveAsync(new[] { $"{entry.Id}.md" });
         }
 
         [Authorize(ContentPredefinedPermissions.Create)]
