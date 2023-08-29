@@ -9,7 +9,7 @@
     <author>Alexander Siniouguine</author>
   </authors>
   <requireLicenseAcceptance>false</requireLicenseAcceptance>
-  <assemblyFile>VirtoCommerce.Contentful.dll</assemblyFile>
+  <assemblyFile>VirtoCommerce.Contentful.Web.dll</assemblyFile>
   <moduleType>VirtoCommerce.Contentful.Module, VirtoCommerce.Contentful</moduleType>
   <dependencies>
     <dependency id="VirtoCommerce.Core" version="3.400.0" />
