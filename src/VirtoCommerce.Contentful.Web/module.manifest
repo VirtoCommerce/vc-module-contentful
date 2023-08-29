@@ -1,20 +1,20 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
 <module xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema">
   <id>VirtoCommerce.Contentful</id>
-  <version>3.202.0</version>
-  <platformVersion>3.200.0</platformVersion>
+  <version>3.400.0</version>
+  <platformVersion>3.400.0</platformVersion>
   <title>Contentful Module (preview)</title>
   <description>Integration module for contentful.com.</description>
   <authors>
     <author>Alexander Siniouguine</author>
   </authors>
   <requireLicenseAcceptance>false</requireLicenseAcceptance>
-  <assemblyFile>VirtoCommerce.Contentful.dll</assemblyFile>
+  <assemblyFile>VirtoCommerce.Contentful.Web.dll</assemblyFile>
   <moduleType>VirtoCommerce.Contentful.Module, VirtoCommerce.Contentful</moduleType>
   <dependencies>
-    <dependency id="VirtoCommerce.Core" version="3.200.0" />
-    <dependency id="VirtoCommerce.Content" version="3.200.0" />
-    <dependency id="VirtoCommerce.Catalog" version="3.200.0" />
+    <dependency id="VirtoCommerce.Core" version="3.400.0" />
+    <dependency id="VirtoCommerce.Content" version="3.400.0" />
+    <dependency id="VirtoCommerce.Catalog" version="3.400.0" />
   </dependencies>
   <useFullTypeNameInSwagger>false</useFullTypeNameInSwagger>
 </module>
