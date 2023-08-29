@@ -65,7 +65,9 @@ namespace VirtoCommerce.Contentful.Controllers.Api
             var type = GetEntryType(entry.SystemProperties.ContentType.SystemProperties.Id);
 
             if (type == EntryType.Unknown)
+            {
                 return Ok("Only entities named \"page*\" are supported");
+            }
 
             // now check if store actually exists, this is more expensive than checking page type, so do it later
             var store = await _storeService.GetByIdAsync(storeId);
@@ -251,7 +253,7 @@ namespace VirtoCommerce.Contentful.Controllers.Api
         private async Task<(CatalogProduct, bool)> GetCatalogProductAsync(ProductEntity entry)
         {
             // try finding catalog by name
-            var catalog = (await _catalogService.GetByIdsAsync(Array.Empty<string>(), null))
+            var catalog = (await _catalogService.GetAsync(Array.Empty<string>(), null))
                 .Where(x => x.Name.Equals(entry.Catalog, StringComparison.OrdinalIgnoreCase))
                 .SingleOrDefault();
             if (catalog == null)
@@ -385,9 +387,13 @@ namespace VirtoCommerce.Contentful.Controllers.Api
         private static EntryType GetEntryType(string entityType)
         {
             if (entityType.StartsWith("page")) // we only support pages for now
+            {
                 return EntryType.Page;
+            }
             if (entityType.StartsWith("product"))
+            {
                 return EntryType.Product;
+            }
 
             return EntryType.Unknown;
         }
