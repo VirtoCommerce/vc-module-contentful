@@ -2,23 +2,22 @@
 using Microsoft.Extensions.DependencyInjection;
 using VirtoCommerce.Platform.Core.Modularity;
 
-namespace VirtoCommerce.Contentful
+namespace VirtoCommerce.Contentful.Web;
+
+public class Module : IModule
 {
-    public class Module : IModule
+    public ManifestModuleInfo ModuleInfo { get; set; }
+
+    public void Initialize(IServiceCollection serviceCollection)
     {
-        public ManifestModuleInfo ModuleInfo { get; set; }
 
-        public void Initialize(IServiceCollection serviceCollection)
-        {
+    }
 
-        }
+    public void PostInitialize(IApplicationBuilder appBuilder)
+    {
+    }
 
-        public void PostInitialize(IApplicationBuilder appBuilder)
-        {
-        }
-
-        public void Uninstall()
-        {
-        }
+    public void Uninstall()
+    {
     }
 }

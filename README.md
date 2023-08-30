@@ -13,16 +13,18 @@ Installing the module:
 # Settings
 * In Contentful configure webhook to point to http://{URL}/admin/api/contentful/{STOREID}?api_key={VIRTO_API_KEY}, it should only apply for create, update and delete events.
 
-![image](https://user-images.githubusercontent.com/1566470/27984261-4d6bc8d8-6386-11e7-9f7d-346045311d15.png)
+![Contentful CMS settings](https://user-images.githubusercontent.com/330693/211502247-908866ea-ad80-4b3a-8972-02769adde0cc.png)
+
 
 # Documentation
-* In Contentful create "page" entity with "Title", "Content" and "Permalink" properties (you can add additional properties like layout etc). You can also create other entries as long as they start with "page" prefix, for instance "page.doc". Module supports multiple entries.
+* In Contentful create "page-virto" entity with "Title", "Content" and "Permalink" properties (you can add additional properties like layout etc). You can also create other entries as long as they start with "page" prefix, for instance "page.doc". Module supports multiple entries.
 
-![image](https://user-images.githubusercontent.com/1566470/27984254-f057f266-6385-11e7-9a1a-fec1bfe67439.png)
+![setting up page model](https://user-images.githubusercontent.com/1566470/27984254-f057f266-6385-11e7-9a1a-fec1bfe67439.png)
 
 * Now go to content and create new "page" entry.
 
-![image](https://user-images.githubusercontent.com/1566470/27984274-7f482928-6386-11e7-8d23-37c461dedb4c.png)
+![Create page in Contentful](https://user-images.githubusercontent.com/330693/211509494-82cbbd40-842f-46e3-b314-1362cfba9a2a.png)
+
 
 * After publishing you can open page in Virto Commerce site and it should look something like this
 

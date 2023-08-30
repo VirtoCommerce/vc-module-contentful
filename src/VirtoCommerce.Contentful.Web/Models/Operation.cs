@@ -1,4 +1,4 @@
-namespace VirtoCommerce.Contentful.Models;
+namespace VirtoCommerce.Contentful.Web.Models;
 public enum Operation
 {
     Undefined,
