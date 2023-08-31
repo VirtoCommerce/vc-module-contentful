@@ -1,16 +1,16 @@
-﻿using Contentful.Core.Configuration;
-using Contentful.Core.Models;
-using Microsoft.AspNetCore.Authorization;
-using Microsoft.AspNetCore.Mvc;
-using Newtonsoft.Json;
-using Newtonsoft.Json.Linq;
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Reflection;
 using System.Text;
 using System.Threading.Tasks;
+using Contentful.Core.Configuration;
+using Contentful.Core.Models;
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
+using Newtonsoft.Json;
+using Newtonsoft.Json.Linq;
 using VirtoCommerce.CatalogModule.Core.Model;
 using VirtoCommerce.CatalogModule.Core.Model.Search;
 using VirtoCommerce.CatalogModule.Core.Search;
@@ -29,24 +29,27 @@ namespace VirtoCommerce.Contentful.Web.Controllers.Api;
 public class ContentfulController : Controller
 {
     private readonly IBlobContentStorageProviderFactory _blobContentStorageProviderFactory;
-        private readonly IStoreService _storeService;
+    private readonly IStoreService _storeService;
     private readonly IItemService _itemService;
     private readonly ICatalogService _catalogService;
     private readonly IProductSearchService _productSearchService;
+    private readonly IContentPathResolver _pathResolver;
 
     public ContentfulController(
         IBlobContentStorageProviderFactory blobContentStorageProviderFactory,
         IStoreService storeService,
         IItemService itemService,
         ICatalogService catalogService,
-        IProductSearchService productSearchService
+        IProductSearchService productSearchService,
+        IContentPathResolver pathResolver
     )
     {
         _itemService = itemService;
-            _storeService = storeService;
+        _storeService = storeService;
         _blobContentStorageProviderFactory = blobContentStorageProviderFactory;
         _catalogService = catalogService;
         _productSearchService = productSearchService;
+        _pathResolver = pathResolver;
     }
 
     // GET: api/contentful/{storeid}
@@ -65,9 +68,9 @@ public class ContentfulController : Controller
         var type = GetEntryType(entry.SystemProperties.ContentType.SystemProperties.Id);
 
         if (type == EntryType.Unknown)
-            {
+        {
             return Ok("Only entities named \"page*\" are supported");
-            }
+        }
 
         // now check if store actually exists, this is more expensive than checking page type, so do it later
         var store = await _storeService.GetByIdAsync(storeId);
@@ -147,7 +150,7 @@ public class ContentfulController : Controller
                 {
                     foreach (var review in list)
                     {
-                            var existingReview = product.Reviews.SingleOrDefault(x => x.ReviewType == ReviewType && x.LanguageCode == review.LanguageCode);
+                        var existingReview = product.Reviews.SingleOrDefault(x => x.ReviewType == ReviewType && x.LanguageCode == review.LanguageCode);
                         if (existingReview == null)
                         {
                             product.Reviews.Add(review);
@@ -208,7 +211,7 @@ public class ContentfulController : Controller
                 {
                     foreach (var property in propList)
                     {
-                            var existingProperty = product.Properties.FirstOrDefault(x => x.Name == property.Name);
+                        var existingProperty = product.Properties.FirstOrDefault(x => x.Name == property.Name);
                         if (existingProperty == null)
                         {
                             product.Properties.Add(property);
@@ -217,7 +220,7 @@ public class ContentfulController : Controller
                         {
                             foreach (var value in property.Values)
                             {
-                                    var existingPropertyValue = existingProperty.Values.SingleOrDefault(x => x.PropertyName == value.PropertyName && x.LanguageCode == value.LanguageCode);
+                                var existingPropertyValue = existingProperty.Values.SingleOrDefault(x => x.PropertyName == value.PropertyName && x.LanguageCode == value.LanguageCode);
                                 if (existingPropertyValue == null)
                                 {
                                     existingProperty.Values.Add(value);
@@ -240,7 +243,7 @@ public class ContentfulController : Controller
             {
                 SearchPhrase = $"contentfulid:{entry.Id}"
             };
-                var result = await _productSearchService.SearchAsync(criteria);
+            var result = await _productSearchService.SearchAsync(criteria);
 
             if (result.TotalCount > 0)
             {
@@ -253,13 +256,13 @@ public class ContentfulController : Controller
     private async Task<(CatalogProduct, bool)> GetCatalogProductAsync(ProductEntity entry)
     {
         // try finding catalog by name
-            var catalog = (await _catalogService.GetAsync(Array.Empty<string>(), null))
-            .Where(x => x.Name.Equals(entry.Catalog, StringComparison.OrdinalIgnoreCase))
-            .SingleOrDefault();
+        var catalog = (await _catalogService.GetAsync(Array.Empty<string>(), null))
+        .Where(x => x.Name.Equals(entry.Catalog, StringComparison.OrdinalIgnoreCase))
+        .SingleOrDefault();
         if (catalog == null)
-            {
-                throw new Exception($"Catalog `{entry.Catalog}` not found");
-            }
+        {
+            throw new Exception($"Catalog `{entry.Catalog}` not found");
+        }
 
         // try finding product by id
 
@@ -271,11 +274,11 @@ public class ContentfulController : Controller
             SearchInChildren = true
         };
 
-            var result = await _productSearchService.SearchAsync(criteria);
+        var result = await _productSearchService.SearchAsync(criteria);
 
         if (result.TotalCount > 0)
         {
-                var item = result.Results[0];
+            var item = result.Results[0];
             item.Name = entry.Name;
             return (item, false);
         }
@@ -304,16 +307,18 @@ public class ContentfulController : Controller
     }
 
     [Authorize(ContentPredefinedPermissions.Delete)]
-        private Task UnpublishContentPage(string storeId, LocalizedPageEntity entry)
+    private Task UnpublishContentPage(string storeId, LocalizedPageEntity entry)
     {
-        var storageProvider = _blobContentStorageProviderFactory.CreateProvider($"Pages/{storeId}");
-            return storageProvider.RemoveAsync(new[] { $"{entry.Id}.md" });
+        var path = _pathResolver.GetContentBasePath("pages", storeId);
+        var storageProvider = _blobContentStorageProviderFactory.CreateProvider(path);
+        return storageProvider.RemoveAsync(new[] { $"{entry.Id}.md" });
     }
 
     [Authorize(ContentPredefinedPermissions.Create)]
     private async Task PublishContentPage(string storeId, LocalizedPageEntity entry)
     {
-        var storageProvider = _blobContentStorageProviderFactory.CreateProvider($"Pages/{storeId}");
+        var path = _pathResolver.GetContentBasePath("pages", storeId);
+        var storageProvider = _blobContentStorageProviderFactory.CreateProvider(path);
 
         var serializer = new SerializerBuilder().Build();
         var yaml = serializer.Serialize(entry.Properties);
@@ -387,13 +392,13 @@ public class ContentfulController : Controller
     private static EntryType GetEntryType(string entityType)
     {
         if (entityType.StartsWith("page")) // we only support pages for now
-            {
+        {
             return EntryType.Page;
-            }
+        }
         if (entityType.StartsWith("product"))
-            {
+        {
             return EntryType.Product;
-            }
+        }
 
         return EntryType.Unknown;
     }
