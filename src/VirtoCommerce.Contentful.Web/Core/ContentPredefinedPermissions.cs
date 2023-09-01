@@ -1,4 +1,4 @@
-namespace VirtoCommerce.Contentful.Core;
+namespace VirtoCommerce.Contentful.Web.Core;
 
 public static class ContentPredefinedPermissions
 {
