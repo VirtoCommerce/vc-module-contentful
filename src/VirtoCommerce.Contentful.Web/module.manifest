@@ -11,8 +11,8 @@
     <dependency id="VirtoCommerce.Core" version="3.800.0" />
   </dependencies>
 
-  <title>Contentful Module (preview)</title>
-  <description>Integration module for contentful.com.</description>
+  <title>Contentful (preview)</title>
+  <description>Integration for contentful.com.</description>
   <authors>
     <author>Alexander Siniouguine</author>
   </authors>
