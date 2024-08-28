@@ -11,9 +11,9 @@ Installing the module:
 * Manually: download module zip package from https://github.com/VirtoCommerce/vc-module-contentful/releases. In VC Manager go to Configuration -> Modules -> Advanced -> upload module package -> Install.
 
 # Settings
-* In Contentful configure webhook to point to http://{URL}/admin/api/contentful/{STOREID}?api_key={VIRTO_API_KEY}, it should only apply for create, update and delete events.
+* In Contentful configure a new custom application and under events enable event that posts to the following URL http://{URL}/admin/api/contentful/{STOREID}?api_key={VIRTO_API_KEY}, it should only apply for create, update and delete Entry events.
 
-![Contentful CMS settings](https://user-images.githubusercontent.com/330693/211502247-908866ea-ad80-4b3a-8972-02769adde0cc.png)
+![Contentful CMS settings](https://github.com/user-attachments/assets/e32086ec-8b80-41cc-9e2c-e2c461c06cbe)
 
 
 # Documentation
