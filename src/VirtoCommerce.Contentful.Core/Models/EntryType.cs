@@ -1,4 +1,4 @@
-namespace VirtoCommerce.Contentful.Web.Models;
+namespace VirtoCommerce.Contentful.Core.Models;
 
 public enum EntryType
 {
