@@ -12,7 +12,7 @@ public static class ContentfulConstants
                 Update = "content:update",
                 Delete = "content:delete";
 
-            public static string[] AllPermissions = new[] { Read, Create, Access, Update, Delete };
+            public static readonly string[] AllPermissions = [Read, Create, Access, Update, Delete];
         }
     }
 }
