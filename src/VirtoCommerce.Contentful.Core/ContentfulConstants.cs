@@ -7,10 +7,10 @@ public static class ContentfulConstants
         public static class Permissions
         {
             public const string Read = "contentful:read";
-            public const string Create = "content:create";
-            public const string Access = "content:access";
-            public const string Update = "content:update";
-            public const string Delete = "content:delete";
+            public const string Create = "contentful:create";
+            public const string Access = "contentful:access";
+            public const string Update = "contentful:update";
+            public const string Delete = "contentful:delete";
 
             public static readonly string[] AllPermissions = [Read, Create, Access, Update, Delete];
         }
