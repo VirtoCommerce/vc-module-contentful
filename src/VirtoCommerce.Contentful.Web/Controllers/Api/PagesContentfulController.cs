@@ -1,7 +1,6 @@
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using Newtonsoft.Json;
 using VirtoCommerce.Contentful.Core;
 using VirtoCommerce.Contentful.Core.Models;
 using VirtoCommerce.Contentful.Core.Services;
@@ -49,7 +48,7 @@ public class PagesContentfulController(IContentfulReader contentfulReader,
             {
                 var json = value[cultureName];
                 var html = await contentfulRenderer.RenderContent(json?.ToString());
-                pageDocument.Content = JsonConvert.SerializeObject(new { json, html });
+                pageDocument.Content = html;
             }
 
             pageDocument.Status = pageOperation.GetPageDocumentStatus();

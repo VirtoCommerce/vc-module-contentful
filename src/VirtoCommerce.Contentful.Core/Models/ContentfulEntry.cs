@@ -1,5 +1,6 @@
 using System.Globalization;
 using Contentful.Core.Models;
+using Newtonsoft.Json.Linq;
 using VirtoCommerce.Pages.Core.Models;
 using VirtoCommerce.Platform.Core.Common;
 
@@ -21,7 +22,7 @@ public class ContentfulEntry : Entry<Dictionary<string, Dictionary<string, objec
         result.Permalink = GetField("permalink");
         if (Fields.TryGetValue("userGroups", out var userGroups))
         {
-            result.UserGroups = (string[])userGroups[CultureName];
+            result.UserGroups = ((JArray)userGroups[CultureName]).ToObject<string[]>();
         }
 
         result.Title = GetField("title");
