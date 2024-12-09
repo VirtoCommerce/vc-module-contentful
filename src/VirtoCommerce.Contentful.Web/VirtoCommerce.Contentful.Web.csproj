@@ -1,24 +1,24 @@
 <Project Sdk="Microsoft.NET.Sdk.Web">
-	<PropertyGroup>
-		<TargetFramework>net8.0</TargetFramework>
-		<noWarn>1591</noWarn>
-		<IsPackable>False</IsPackable>
-		<OutputType>Library</OutputType>
-	</PropertyGroup>
-	<ItemGroup>
-		<Compile Remove="Services\**" />
-		<Content Remove="Services\**" />
-		<EmbeddedResource Remove="Services\**" />
-		<None Remove="Services\**" />
-	</ItemGroup>
-	<ItemGroup>
-		<PackageReference Include="VirtoCommerce.CatalogModule.Core" Version="3.828.0" />
-		<PackageReference Include="VirtoCommerce.ContentModule.Core" Version="3.824.0" />
-		<PackageReference Include="VirtoCommerce.CoreModule.Core" Version="3.812.0" />
-		<PackageReference Include="YamlDotNet.NetCore" Version="1.0.0" />
-	</ItemGroup>
-	<ItemGroup>
-		<ProjectReference Include="..\VirtoCommerce.Contentful.Core\VirtoCommerce.Contentful.Core.csproj" />
-		<ProjectReference Include="..\VirtoCommerce.Contentful.Data\VirtoCommerce.Contentful.Data.csproj" />
-	</ItemGroup>
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <noWarn>1591</noWarn>
+    <IsPackable>False</IsPackable>
+    <OutputType>Library</OutputType>
+  </PropertyGroup>
+  <ItemGroup>
+    <Compile Remove="Services\**" />
+    <Content Remove="Services\**" />
+    <EmbeddedResource Remove="Services\**" />
+    <None Remove="Services\**" />
+  </ItemGroup>
+  <ItemGroup>
+    <PackageReference Include="VirtoCommerce.CatalogModule.Core" Version="3.828.0" />
+    <PackageReference Include="VirtoCommerce.ContentModule.Core" Version="3.824.0" />
+    <PackageReference Include="VirtoCommerce.CoreModule.Core" Version="3.812.0" />
+    <PackageReference Include="YamlDotNet.NetCore" Version="1.0.0" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\VirtoCommerce.Contentful.Core\VirtoCommerce.Contentful.Core.csproj" />
+    <ProjectReference Include="..\VirtoCommerce.Contentful.Data\VirtoCommerce.Contentful.Data.csproj" />
+  </ItemGroup>
 </Project>
