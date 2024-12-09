@@ -6,22 +6,13 @@
     <OutputType>Library</OutputType>
   </PropertyGroup>
   <ItemGroup>
-    <Compile Remove="Services\**" />
-    <Content Remove="Services\**" />
-    <EmbeddedResource Remove="Services\**" />
-    <None Remove="Services\**" />
+    <PackageReference Include="VirtoCommerce.CatalogModule.Core" Version="3.828.0" />
+    <PackageReference Include="VirtoCommerce.ContentModule.Core" Version="3.824.0" />
+    <PackageReference Include="VirtoCommerce.CoreModule.Core" Version="3.812.0" />
+    <PackageReference Include="YamlDotNet.NetCore" Version="1.0.0" />
   </ItemGroup>
   <ItemGroup>
-    <Folder Include="Controllers\" />
-    <Folder Include="Properties\" />
-  </ItemGroup>
-  <ItemGroup>
-    <PackageReference Include="contentful.csharp" Version="7.5.0" />
-    <PackageReference Include="VirtoCommerce.CatalogModule.Core" Version="3.800.0" />
-    <PackageReference Include="VirtoCommerce.Platform.Core" Version="3.800.0" />
-    <PackageReference Include="VirtoCommerce.ContentModule.Core" Version="3.800.0" />
-    <PackageReference Include="VirtoCommerce.CoreModule.Core" Version="3.800.0" />
-    <PackageReference Include="VirtoCommerce.StoreModule.Core" Version="3.800.0" />
-    <PackageReference Include="YamlDotNet" Version="16.1.3" />
+    <ProjectReference Include="..\VirtoCommerce.Contentful.Core\VirtoCommerce.Contentful.Core.csproj" />
+    <ProjectReference Include="..\VirtoCommerce.Contentful.Data\VirtoCommerce.Contentful.Data.csproj" />
   </ItemGroup>
 </Project>

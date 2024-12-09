@@ -1,0 +1,15 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="contentful.csharp" Version="8.3.0" />
+    <PackageReference Include="VirtoCommerce.Pages.Core" Version="3.804.0" />
+    <PackageReference Include="VirtoCommerce.Platform.Core" Version="3.853.0" />
+    <PackageReference Include="VirtoCommerce.StoreModule.Core" Version="3.809.0" />
+  </ItemGroup>
+
+</Project>

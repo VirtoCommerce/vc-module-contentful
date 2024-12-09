@@ -1,7 +1,4 @@
-﻿using System.Collections.Generic;
-using System.Linq;
-
-namespace VirtoCommerce.Contentful.Web.Models;
+namespace VirtoCommerce.Contentful.Core.Models;
 
 public class ProductEntity
 {

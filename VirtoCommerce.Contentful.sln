@@ -5,6 +5,10 @@ VisualStudioVersion = 17.4.33205.214
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "VirtoCommerce.Contentful.Web", "src\VirtoCommerce.Contentful.Web\VirtoCommerce.Contentful.Web.csproj", "{798FE35E-7372-47E9-BC88-0552940CAFDC}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "VirtoCommerce.Contentful.Core", "src\VirtoCommerce.Contentful.Core\VirtoCommerce.Contentful.Core.csproj", "{A9DB8F4E-22D9-4379-9164-5E3650CF96CE}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "VirtoCommerce.Contentful.Data", "src\VirtoCommerce.Contentful.Data\VirtoCommerce.Contentful.Data.csproj", "{A272A25A-45F5-4D68-8848-9234A1262F55}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -15,6 +19,14 @@ Global
 		{798FE35E-7372-47E9-BC88-0552940CAFDC}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{798FE35E-7372-47E9-BC88-0552940CAFDC}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{798FE35E-7372-47E9-BC88-0552940CAFDC}.Release|Any CPU.Build.0 = Release|Any CPU
+		{A9DB8F4E-22D9-4379-9164-5E3650CF96CE}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{A9DB8F4E-22D9-4379-9164-5E3650CF96CE}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{A9DB8F4E-22D9-4379-9164-5E3650CF96CE}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{A9DB8F4E-22D9-4379-9164-5E3650CF96CE}.Release|Any CPU.Build.0 = Release|Any CPU
+		{A272A25A-45F5-4D68-8848-9234A1262F55}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{A272A25A-45F5-4D68-8848-9234A1262F55}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{A272A25A-45F5-4D68-8848-9234A1262F55}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{A272A25A-45F5-4D68-8848-9234A1262F55}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

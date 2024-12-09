@@ -2,22 +2,20 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
-using System.Reflection;
 using System.Text;
 using System.Threading.Tasks;
-using Contentful.Core.Configuration;
-using Contentful.Core.Models;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using Newtonsoft.Json;
-using Newtonsoft.Json.Linq;
 using VirtoCommerce.CatalogModule.Core.Model;
 using VirtoCommerce.CatalogModule.Core.Model.Search;
 using VirtoCommerce.CatalogModule.Core.Search;
 using VirtoCommerce.CatalogModule.Core.Services;
-using VirtoCommerce.Contentful.Web.Core;
-using VirtoCommerce.Contentful.Web.Models;
+using VirtoCommerce.Contentful.Core;
+using VirtoCommerce.Contentful.Core.Models;
+using VirtoCommerce.Contentful.Core.Services;
+using VirtoCommerce.Contentful.Data.Extensions;
 using VirtoCommerce.ContentModule.Core.Services;
+using VirtoCommerce.Pages.Core.Events;
 using VirtoCommerce.Platform.Core.Common;
 using VirtoCommerce.StoreModule.Core.Services;
 using YamlDotNet.Serialization;
@@ -34,6 +32,8 @@ public class ContentfulController : Controller
     private readonly ICatalogService _catalogService;
     private readonly IProductSearchService _productSearchService;
     private readonly IContentPathResolver _pathResolver;
+    private readonly IContentfulRenderer _contentfulRenderer;
+    private readonly IContentfulReader _contentfulReader;
 
     public ContentfulController(
         IBlobContentStorageProviderFactory blobContentStorageProviderFactory,
@@ -41,7 +41,9 @@ public class ContentfulController : Controller
         IItemService itemService,
         ICatalogService catalogService,
         IProductSearchService productSearchService,
-        IContentPathResolver pathResolver
+        IContentPathResolver pathResolver,
+        IContentfulReader contentfulReader,
+        IContentfulRenderer contentfulRenderer
     )
     {
         _itemService = itemService;
@@ -50,6 +52,8 @@ public class ContentfulController : Controller
         _catalogService = catalogService;
         _productSearchService = productSearchService;
         _pathResolver = pathResolver;
+        _contentfulRenderer = contentfulRenderer;
+        _contentfulReader = contentfulReader;
     }
 
     // GET: api/contentful/{storeid}
@@ -58,16 +62,9 @@ public class ContentfulController : Controller
     public async Task<IActionResult> WebhookHandlerAsync(string storeId)
     {
         // TODO: add check if user has store permissions
-        using var reader = new StreamReader(Request.Body);
-        var json = await reader.ReadToEndAsync();
+        var entry = await _contentfulReader.ReadEntry(Request.Body);
 
-        var source = JsonConvert.DeserializeObject<JObject>(json);
-
-        var entry = GetEntry<Entry<Dictionary<string, Dictionary<string, object>>>>(source);
-
-        var type = GetEntryType(entry.SystemProperties.ContentType.SystemProperties.Id);
-
-        if (type == EntryType.Unknown)
+        if (entry.EntryType == EntryType.Unknown)
         {
             return Ok("Only entities named \"page*\" are supported");
         }
@@ -85,10 +82,10 @@ public class ContentfulController : Controller
         if (headers.TryGetValue("X-Contentful-Topic", out var operations))
         {
             var op = operations.FirstOrDefault();
-            var action = GetAction(op);
+            var action = op.ToPageOperation();
 
             // TODO: get language from the response, add support for multiple languages
-            if (type == EntryType.Page) // create/update/delete CMS pages
+            if (entry.EntryType == EntryType.Page) // create/update/delete CMS pages
             {
                 // go through all the languages
                 if (!entry.Fields.TryGetValue("pageName", out var fields) && !entry.Fields.TryGetValue("title", out fields))
@@ -106,7 +103,7 @@ public class ContentfulController : Controller
 
                 return Ok(string.Format("Page updated successfully \"{0}\"", entry.SystemProperties.Id));
             }
-            if (type == EntryType.Product) // create/update/delete products
+            if (entry.EntryType == EntryType.Product) // create/update/delete products
             {
                 var product = new ProductEntity(entry.SystemProperties.Id, entry.Fields);
                 await RouteProductCall(action, product);
@@ -118,10 +115,10 @@ public class ContentfulController : Controller
     }
 
     #region Product
-    private async Task RouteProductCall(Operation op, ProductEntity entry)
+    private async Task RouteProductCall(PageOperation op, ProductEntity entry)
     {
         const string ReviewType = "FullReview";
-        if (op == Operation.Publish) // publish
+        if (op == PageOperation.Publish) // publish
         {
             var (product, isNew) = await GetCatalogProductAsync(entry);
             product.IsActive = true;
@@ -237,7 +234,7 @@ public class ContentfulController : Controller
 
             await _itemService.SaveChangesAsync(new[] { product });
         }
-        else if (op == Operation.Unpublish || op == Operation.Delete) // unpublish
+        else if (op == PageOperation.Unpublish || op == PageOperation.Delete) // unpublish
         {
             var criteria = new ProductSearchCriteria
             {
@@ -294,19 +291,19 @@ public class ContentfulController : Controller
     #endregion
 
     #region CMS
-    private async Task RouteContentCall(Operation op, string storeId, LocalizedPageEntity entry)
+    private async Task RouteContentCall(PageOperation op, string storeId, LocalizedPageEntity entry)
     {
-        if (op == Operation.Undefined) // unpublish
+        if (op == PageOperation.Unknown) // unpublish
         {
             await UnpublishContentPage(storeId, entry);
         }
-        else if (op == Operation.Publish) // publish
+        else if (op == PageOperation.Publish) // publish
         {
             await PublishContentPage(storeId, entry);
         }
     }
 
-    [Authorize(ContentPredefinedPermissions.Delete)]
+    [Authorize(ContentfulConstants.Security.Permissions.Delete)]
     private Task UnpublishContentPage(string storeId, LocalizedPageEntity entry)
     {
         var path = _pathResolver.GetContentBasePath("pages", storeId);
@@ -314,7 +311,7 @@ public class ContentfulController : Controller
         return storageProvider.RemoveAsync(new[] { $"{entry.Id}.md" });
     }
 
-    [Authorize(ContentPredefinedPermissions.Create)]
+    [Authorize(ContentfulConstants.Security.Permissions.Create)]
     private async Task PublishContentPage(string storeId, LocalizedPageEntity entry)
     {
         var path = _pathResolver.GetContentBasePath("pages", storeId);
@@ -327,79 +324,12 @@ public class ContentfulController : Controller
         contents.AppendLine("---");
         contents.AppendLine(yaml);
         contents.AppendLine("---");
-        var content = await GetContentAsync(entry.Content);
+        var content = await _contentfulRenderer.RenderContent(entry.Content);
         contents.AppendLine(content);
-        using var stream = storageProvider.OpenWrite($"{entry.Id}.md");
+        await using var stream = await storageProvider.OpenWriteAsync($"{entry.Id}.md");
         using var memStream = new MemoryStream(Encoding.UTF8.GetB‌​ytes(contents.ToString()));
         await memStream.CopyToAsync(stream);
     }
 
-    private static async Task<string> GetContentAsync(string value)
-    {
-        try
-        {
-            var document = JsonConvert.DeserializeObject<Document>(value, new JsonSerializerSettings
-            {
-                Converters = new JsonConverter[] { new AssetJsonConverter(), new ContentJsonConverter() }
-            });
-            var renderer = new HtmlRenderer();
-            var result = await renderer.ToHtml(document);
-            return result;
-        }
-        catch
-        {
-            return value;
-        }
-    }
-
     #endregion
-
-    private static T GetEntry<T>(JObject source)
-    {
-        T ob;
-
-        if (typeof(IContentfulResource).GetTypeInfo().IsAssignableFrom(typeof(T).GetTypeInfo()))
-        {
-            ob = source.ToObject<T>();
-        }
-        else
-        {
-            var json = source;
-
-            //move the sys object beneath the fields to make serialization more logical for the end user.
-            var sys = json.SelectToken("$.sys");
-            var fields = json.SelectToken("$.fields");
-            fields["sys"] = sys;
-            ob = fields.ToObject<T>();
-        }
-        return ob;
-    }
-
-    private static Operation GetAction(string topic)
-    {
-        if (topic.Equals("ContentManagement.Entry.unpublish")) // unpublish
-        {
-            return Operation.Unpublish;
-        }
-        else if (topic.Equals("ContentManagement.Entry.publish")) // publish
-        {
-            return Operation.Publish;
-        }
-
-        return Operation.Undefined;
-    }
-
-    private static EntryType GetEntryType(string entityType)
-    {
-        if (entityType.StartsWith("page")) // we only support pages for now
-        {
-            return EntryType.Page;
-        }
-        if (entityType.StartsWith("product"))
-        {
-            return EntryType.Product;
-        }
-
-        return EntryType.Unknown;
-    }
 }
