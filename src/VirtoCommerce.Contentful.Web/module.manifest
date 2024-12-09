@@ -4,11 +4,13 @@
   <version>3.804.0</version>
   <version-tag />
 
-  <platformVersion>3.800.0</platformVersion>
+  <platformVersion>3.853.0</platformVersion>
   <dependencies>
-    <dependency id="VirtoCommerce.Catalog" version="3.800.0" />
-    <dependency id="VirtoCommerce.Content" version="3.800.0" />
-    <dependency id="VirtoCommerce.Core" version="3.800.0" />
+    <dependency id="VirtoCommerce.Catalog" version="3.828.0" />
+    <dependency id="VirtoCommerce.Content" version="3.824.0" />
+    <dependency id="VirtoCommerce.Core" version="3.853.0" />
+    <dependency id="VirtoCommerce.Pages" version="3.804.0" />
+    <dependency id="VirtoCommerce.Store" version="3.809.0" />
   </dependencies>
 
   <title>Contentful (preview)</title>
