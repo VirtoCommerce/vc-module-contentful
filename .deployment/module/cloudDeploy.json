@@ -1,5 +1,5 @@
 {
-    "artifactKey": "VirtoCommerce.Pages",
+    "artifactKey": "VirtoCommerce.Contentful",
     "deployRepo": "vc-deploy-dev",
     "cmPath": "backend/packages.json",
     "dev": {
