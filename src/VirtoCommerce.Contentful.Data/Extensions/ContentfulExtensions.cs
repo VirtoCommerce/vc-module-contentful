@@ -9,10 +9,6 @@ public static class ContentfulExtensions
         return value switch
         {
             "ContentManagement.Entry.archive" => PageOperation.Archive,
-            // "ContentManagement.Entry.save" => PageOperation.Unknown,
-            // "ContentManagement.Entry.create" => PageOperation.Unknown,
-            // "ContentManagement.Entry.auto_save" => PageOperation.Unknown,
-            // "ContentManagement.Entry.unarchive" => PageOperation.Unpublish,
             "ContentManagement.Entry.delete" => PageOperation.Delete,
             "ContentManagement.Entry.publish" => PageOperation.Publish,
             "ContentManagement.Entry.unpublish" => PageOperation.Unpublish,
