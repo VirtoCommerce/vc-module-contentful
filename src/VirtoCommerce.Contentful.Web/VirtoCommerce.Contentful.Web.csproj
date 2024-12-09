@@ -12,7 +12,6 @@
     <None Remove="Services\**" />
   </ItemGroup>
   <ItemGroup>
-    <Folder Include="Extensions\" />
     <Folder Include="Properties\" />
   </ItemGroup>
   <ItemGroup>

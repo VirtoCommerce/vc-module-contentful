@@ -63,5 +63,4 @@ public class PagesContentfulController(IContentfulReader contentfulReader,
 
         return Ok();
     }
-
 }
