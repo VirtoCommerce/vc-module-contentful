@@ -18,6 +18,9 @@
   <authors>
     <author>Alexander Siniouguine</author>
   </authors>
+  <owners>
+    <owner>VirtoCommerce</owner>
+  </owners>
   <requireLicenseAcceptance>false</requireLicenseAcceptance>
   <assemblyFile>VirtoCommerce.Contentful.Web.dll</assemblyFile>
   <moduleType>VirtoCommerce.Contentful.Web.Module, VirtoCommerce.Contentful.Web</moduleType>
