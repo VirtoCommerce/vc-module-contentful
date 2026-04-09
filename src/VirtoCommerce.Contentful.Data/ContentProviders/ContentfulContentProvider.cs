@@ -2,25 +2,26 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Net.Http;
-using System.Threading;
 using System.Threading.Tasks;
 using Contentful.Core;
 using Contentful.Core.Configuration;
-using Contentful.Core.Models;
 using Contentful.Core.Search;
 using VirtoCommerce.Contentful.Core;
 using VirtoCommerce.Contentful.Core.Models;
 using VirtoCommerce.Pages.Core.ContentProviders;
 using VirtoCommerce.Pages.Core.Models;
+using VirtoCommerce.Platform.Core.Common;
 using VirtoCommerce.Platform.Core.Settings;
 using VirtoCommerce.SearchModule.Core.Model;
+using VirtoCommerce.StoreModule.Core.Model;
+using VirtoCommerce.StoreModule.Core.Model.Search;
 using VirtoCommerce.StoreModule.Core.Services;
 
 namespace VirtoCommerce.Contentful.Data.ContentProviders;
 
 public class ContentfulContentProvider(
     IHttpClientFactory httpClientFactory,
-    IStoreService storeService,
+    IStoreSearchService storeSearchService,
     ISettingsManager settingsManager)
     : IPageContentProvider
 {
@@ -39,10 +40,7 @@ public class ContentfulContentProvider(
                 .ContentTypeIs(contentTypeId)
                 .Limit(0);
 
-            if (startDate.HasValue)
-            {
-                queryBuilder.FieldGreaterThan("sys.updatedAt", startDate.Value.ToUniversalTime().ToString("yyyy-MM-ddTHH:mm:ssK"));
-            }
+            AddDateFilters(queryBuilder, startDate, endDate);
 
             var result = await client.GetEntries(queryBuilder);
             totalCount += result.Total;
@@ -66,10 +64,7 @@ public class ContentfulContentProvider(
                     .Skip(offset)
                     .Limit(PageSize);
 
-                if (startDate.HasValue)
-                {
-                    queryBuilder.FieldGreaterThan("sys.updatedAt", startDate.Value.ToUniversalTime().ToString("yyyy-MM-ddTHH:mm:ssK"));
-                }
+                AddDateFilters(queryBuilder, startDate, endDate);
 
                 var result = await client.GetEntries(queryBuilder);
 
@@ -115,7 +110,6 @@ public class ContentfulContentProvider(
                         continue;
                     }
 
-                    // Process each locale
                     var locales = entry.Fields.Values
                         .SelectMany(f => f.Keys)
                         .Distinct()
@@ -125,7 +119,12 @@ public class ContentfulContentProvider(
 
                     entry.CultureName = cultureName;
                     var pageDocument = entry.ToPageDocument();
-                    pageDocument.StoreId = storeId;
+
+                    if (pageDocument.StoreId.IsNullOrEmpty())
+                    {
+                        pageDocument.StoreId = storeId;
+                    }
+
                     result.Add(pageDocument);
                 }
                 catch
@@ -138,19 +137,34 @@ public class ContentfulContentProvider(
         return result;
     }
 
-    private async Task ForEachStoreAsync(Func<ContentfulClient, string, string, string, Task> action)
+    private static void AddDateFilters(QueryBuilder<ContentfulEntry> queryBuilder, DateTime? startDate, DateTime? endDate)
     {
-        var stores = await storeService.GetAsync([], null, clone: false);
-        if (stores == null)
+        if (startDate.HasValue)
         {
-            return;
+            queryBuilder.FieldGreaterThan("sys.updatedAt", startDate.Value.ToUniversalTime().ToString("yyyy-MM-ddTHH:mm:ssK"));
         }
 
-        foreach (var store in stores)
+        if (endDate.HasValue)
         {
-            var spaceId = await settingsManager.GetValueAsync<string>(ContentfulConstants.Settings.General.SpaceId);
-            var apiKey = await settingsManager.GetValueAsync<string>(ContentfulConstants.Settings.General.DeliveryApiKey);
-            var contentTypeId = await settingsManager.GetValueAsync<string>(ContentfulConstants.Settings.General.ContentTypeId);
+            queryBuilder.FieldLessThan("sys.updatedAt", endDate.Value.ToUniversalTime().ToString("yyyy-MM-ddTHH:mm:ssK"));
+        }
+    }
+
+    private async Task ForEachStoreAsync(Func<ContentfulClient, string, string, string, Task> action)
+    {
+        var criteria = AbstractTypeFactory<StoreSearchCriteria>.TryCreateInstance();
+        criteria.Take = 50;
+        var storesResult = await storeSearchService.SearchAsync(criteria);
+
+        foreach (var store in storesResult.Results)
+        {
+            var spaceIdSetting = await settingsManager.GetObjectSettingAsync(ContentfulConstants.Settings.General.SpaceId.Name, "Store", store.Id);
+            var apiKeySetting = await settingsManager.GetObjectSettingAsync(ContentfulConstants.Settings.General.DeliveryApiKey.Name, "Store", store.Id);
+            var contentTypeIdSetting = await settingsManager.GetObjectSettingAsync(ContentfulConstants.Settings.General.ContentTypeId.Name, "Store", store.Id);
+
+            var spaceId = spaceIdSetting?.Value as string;
+            var apiKey = apiKeySetting?.Value as string;
+            var contentTypeId = contentTypeIdSetting?.Value as string;
 
             if (string.IsNullOrEmpty(spaceId) || string.IsNullOrEmpty(apiKey))
             {
