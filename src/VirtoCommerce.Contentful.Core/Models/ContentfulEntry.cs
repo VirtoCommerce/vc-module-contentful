@@ -32,12 +32,10 @@ public class ContentfulEntry : Entry<Dictionary<string, Dictionary<string, objec
         result.ModifiedBy = SystemProperties.UpdatedBy.SystemProperties.Id;
         result.ModifiedDate = SystemProperties.UpdatedAt;
         result.Source = "contentful";
-        result.Visibility = Fields.TryGetValue("isAuthenticated", out var visibility)
+        var isPrivate = Fields.TryGetValue("isAuthenticated", out var visibility)
             && visibility.TryGetValue(CultureName, out var isAuthenticated)
-            ? (bool)isAuthenticated
-                ? PageDocumentVisibility.Private
-                : PageDocumentVisibility.Public
-            : PageDocumentVisibility.Private;
+            && (bool)isAuthenticated;
+        result.Visibility = isPrivate ? PageDocumentVisibility.Private : PageDocumentVisibility.Public;
         result.StoreId = GetField("storeId");
         result.StartDate = GetDateField("startDate", DateTime.MinValue);
         result.EndDate = GetDateField("endDate", DateTime.MaxValue);
