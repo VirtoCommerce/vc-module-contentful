@@ -8,6 +8,7 @@ using Contentful.Core.Configuration;
 using Contentful.Core.Search;
 using VirtoCommerce.Contentful.Core;
 using VirtoCommerce.Contentful.Core.Models;
+using VirtoCommerce.Contentful.Core.Services;
 using VirtoCommerce.Pages.Core.ContentProviders;
 using VirtoCommerce.Pages.Core.Models;
 using VirtoCommerce.Platform.Core.Common;
@@ -22,7 +23,8 @@ namespace VirtoCommerce.Contentful.Data.ContentProviders;
 public class ContentfulContentProvider(
     IHttpClientFactory httpClientFactory,
     IStoreSearchService storeSearchService,
-    ISettingsManager settingsManager)
+    ISettingsManager settingsManager,
+    IContentfulRenderer contentfulRenderer)
     : IPageContentProvider
 {
     private const int PageSize = 100;
@@ -37,7 +39,7 @@ public class ContentfulContentProvider(
 
         await ForEachStoreAsync(async (client, contentTypeId, _, _, spaceId) =>
         {
-            if (!processedSpaces.Add(spaceId))
+            if (!processedSpaces.Add($"{spaceId}:{contentTypeId}"))
             {
                 return;
             }
@@ -62,7 +64,7 @@ public class ContentfulContentProvider(
 
         await ForEachStoreAsync(async (client, contentTypeId, _, _, spaceId) =>
         {
-            if (!processedSpaces.Add(spaceId))
+            if (!processedSpaces.Add($"{spaceId}:{contentTypeId}"))
             {
                 return;
             }
@@ -114,46 +116,62 @@ public class ContentfulContentProvider(
         {
             foreach (var id in ids)
             {
-                if (!processedIds.Add(id))
+                if (processedIds.Contains(id))
                 {
                     continue;
                 }
 
-                try
+                var pageDocument = await TryGetPageDocumentAsync(client, id, contentTypeId, storeId, defaultLocale);
+                if (pageDocument != null)
                 {
-                    var entry = await client.GetEntry<ContentfulEntry>(id);
-                    var entryContentTypeId = entry?.SystemProperties?.ContentType?.SystemProperties?.Id;
-
-                    if (entryContentTypeId == null || !entryContentTypeId.Equals(contentTypeId, StringComparison.OrdinalIgnoreCase))
-                    {
-                        continue;
-                    }
-
-                    var locales = entry.Fields.Values
-                        .SelectMany(f => f.Keys)
-                        .Distinct()
-                        .ToList();
-
-                    var cultureName = locales.FirstOrDefault() ?? defaultLocale;
-
-                    entry.CultureName = cultureName;
-                    var pageDocument = entry.ToPageDocument();
-
-                    if (pageDocument.StoreId.IsNullOrEmpty())
-                    {
-                        pageDocument.StoreId = storeId;
-                    }
-
+                    processedIds.Add(id);
                     result.Add(pageDocument);
-                }
-                catch
-                {
-                    // Entry not found or not accessible — skip
                 }
             }
         });
 
         return result;
+    }
+
+    private async Task<PageDocument> TryGetPageDocumentAsync(
+        ContentfulClient client, string id, string contentTypeId, string storeId, string defaultLocale)
+    {
+        try
+        {
+            var entry = await client.GetEntry<ContentfulEntry>(id);
+            var entryContentTypeId = entry?.SystemProperties?.ContentType?.SystemProperties?.Id;
+
+            if (entryContentTypeId == null || !entryContentTypeId.Equals(contentTypeId, StringComparison.OrdinalIgnoreCase))
+            {
+                return null;
+            }
+
+            var cultureName = entry.Fields.Values
+                .SelectMany(f => f.Keys)
+                .Distinct()
+                .FirstOrDefault() ?? defaultLocale;
+
+            entry.CultureName = cultureName;
+            var pageDocument = entry.ToPageDocument();
+
+            if (entry.Fields.TryGetValue("content", out var contentField) &&
+                contentField.TryGetValue(cultureName, out var contentJson))
+            {
+                pageDocument.Content = await contentfulRenderer.RenderContent(contentJson?.ToString());
+            }
+
+            if (pageDocument.StoreId.IsNullOrEmpty())
+            {
+                pageDocument.StoreId = storeId;
+            }
+
+            return pageDocument;
+        }
+        catch
+        {
+            // Entry not found or not accessible in this space — will retry with next store
+            return null;
+        }
     }
 
     private static void AddDateFilters(QueryBuilder<ContentfulEntry> queryBuilder, DateTime? startDate, DateTime? endDate)
