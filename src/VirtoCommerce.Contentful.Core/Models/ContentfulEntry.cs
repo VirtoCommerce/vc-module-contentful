@@ -47,7 +47,8 @@ public class ContentfulEntry : Entry<Dictionary<string, Dictionary<string, objec
     private string GetField(string fieldName)
     {
         return Fields.TryGetValue(fieldName, out var field)
-            ? field[CultureName]?.ToString()
+            && field.TryGetValue(CultureName, out var value)
+            ? value?.ToString()
             : null;
     }
 
