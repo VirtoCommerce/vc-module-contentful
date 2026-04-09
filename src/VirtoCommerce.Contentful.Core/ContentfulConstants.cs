@@ -46,7 +46,7 @@ public static class ContentfulConstants
                 Name = "Contentful.ContentTypeId",
                 GroupName = "Contentful",
                 ValueType = SettingValueType.ShortText,
-                DefaultValue = "page",
+                DefaultValue = PageContentTypePrefix,
             };
         }
 

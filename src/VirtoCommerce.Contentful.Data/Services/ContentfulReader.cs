@@ -2,6 +2,7 @@ using System.Reflection;
 using Contentful.Core.Models;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
+using VirtoCommerce.Contentful.Core;
 using VirtoCommerce.Contentful.Core.Models;
 using VirtoCommerce.Contentful.Core.Services;
 
@@ -46,7 +47,7 @@ public class ContentfulReader : IContentfulReader
 
     private static EntryType GetEntryType(string entryType)
     {
-        if (entryType.StartsWith("page")) // we only support pages for now
+        if (entryType.StartsWith(ContentfulConstants.PageContentTypePrefix)) // we only support pages for now
         {
             return EntryType.Page;
         }

@@ -232,7 +232,7 @@ public class ContentfulContentProvider(
             var client = new ContentfulClient(httpClient, options);
             var defaultLocale = store.DefaultLanguage ?? "en-US";
 
-            await action(client, contentTypeId ?? "page", store.Id, defaultLocale, spaceId);
+            await action(client, string.IsNullOrEmpty(contentTypeId) ? ContentfulConstants.PageContentTypePrefix : contentTypeId, store.Id, defaultLocale, spaceId);
         }
     }
 }
