@@ -138,9 +138,8 @@ public class ContentfulContentProvider(
         try
         {
             var entry = await client.GetEntry<ContentfulEntry>(id, queryString: "locale=*");
-            var entryContentTypeId = entry?.SystemProperties?.ContentType?.SystemProperties?.Id;
 
-            if (entryContentTypeId == null || !entryContentTypeId.Equals(contentTypeId, StringComparison.OrdinalIgnoreCase))
+            if (!IsMatchingContentType(entry, contentTypeId))
             {
                 return null;
             }
@@ -153,11 +152,7 @@ public class ContentfulContentProvider(
             entry.CultureName = cultureName;
             var pageDocument = entry.ToPageDocument();
 
-            if (entry.Fields.TryGetValue("content", out var contentField) &&
-                contentField.TryGetValue(cultureName, out var contentJson))
-            {
-                pageDocument.Content = await contentfulRenderer.RenderContent(contentJson?.ToString());
-            }
+            await RenderContentAsync(entry, pageDocument, cultureName);
 
             if (pageDocument.StoreId.IsNullOrEmpty())
             {
@@ -168,8 +163,22 @@ public class ContentfulContentProvider(
         }
         catch (global::Contentful.Core.Errors.ContentfulException ex) when (ex.StatusCode == 404)
         {
-            // Entry not found in this space — will retry with next store
             return null;
+        }
+    }
+
+    private static bool IsMatchingContentType(ContentfulEntry entry, string contentTypeId)
+    {
+        var entryContentTypeId = entry?.SystemProperties?.ContentType?.SystemProperties?.Id;
+        return entryContentTypeId != null && entryContentTypeId.Equals(contentTypeId, StringComparison.OrdinalIgnoreCase);
+    }
+
+    private async Task RenderContentAsync(ContentfulEntry entry, PageDocument pageDocument, string cultureName)
+    {
+        if (entry.Fields.TryGetValue("content", out var contentField) &&
+            contentField.TryGetValue(cultureName, out var contentJson))
+        {
+            pageDocument.Content = await contentfulRenderer.RenderContent(contentJson?.ToString());
         }
     }
 
