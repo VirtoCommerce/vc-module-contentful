@@ -33,9 +33,15 @@ public class ContentfulContentProvider(
     public async Task<long> GetTotalChangesCountAsync(DateTime? startDate, DateTime? endDate)
     {
         long totalCount = 0;
+        var processedSpaces = new HashSet<string>();
 
-        await ForEachStoreAsync(async (client, contentTypeId, _, _) =>
+        await ForEachStoreAsync(async (client, contentTypeId, _, _, spaceId) =>
         {
+            if (!processedSpaces.Add(spaceId))
+            {
+                return;
+            }
+
             var queryBuilder = new QueryBuilder<ContentfulEntry>()
                 .ContentTypeIs(contentTypeId)
                 .Limit(0);
@@ -52,9 +58,15 @@ public class ContentfulContentProvider(
     public async Task<IList<IndexDocumentChange>> GetChangesAsync(DateTime? startDate, DateTime? endDate, long skip, long take)
     {
         var allChanges = new List<IndexDocumentChange>();
+        var processedSpaces = new HashSet<string>();
 
-        await ForEachStoreAsync(async (client, contentTypeId, _, _) =>
+        await ForEachStoreAsync(async (client, contentTypeId, _, _, spaceId) =>
         {
+            if (!processedSpaces.Add(spaceId))
+            {
+                return;
+            }
+
             var offset = 0;
             while (true)
             {
@@ -96,16 +108,23 @@ public class ContentfulContentProvider(
     public async Task<IList<PageDocument>> GetByIdsAsync(IList<string> ids)
     {
         var result = new List<PageDocument>();
+        var processedIds = new HashSet<string>();
 
-        await ForEachStoreAsync(async (client, contentTypeId, storeId, defaultLocale) =>
+        await ForEachStoreAsync(async (client, contentTypeId, storeId, defaultLocale, _) =>
         {
             foreach (var id in ids)
             {
+                if (!processedIds.Add(id))
+                {
+                    continue;
+                }
+
                 try
                 {
                     var entry = await client.GetEntry<ContentfulEntry>(id);
+                    var entryContentTypeId = entry?.SystemProperties?.ContentType?.SystemProperties?.Id;
 
-                    if (entry?.SystemProperties?.ContentType?.SystemProperties?.Id?.StartsWith(ContentfulConstants.PageContentTypePrefix) != true)
+                    if (entryContentTypeId == null || !entryContentTypeId.Equals(contentTypeId, StringComparison.OrdinalIgnoreCase))
                     {
                         continue;
                     }
@@ -150,13 +169,29 @@ public class ContentfulContentProvider(
         }
     }
 
-    private async Task ForEachStoreAsync(Func<ContentfulClient, string, string, string, Task> action)
+    private async Task ForEachStoreAsync(Func<ContentfulClient, string, string, string, string, Task> action)
     {
+        const int storeBatchSize = 50;
         var criteria = AbstractTypeFactory<StoreSearchCriteria>.TryCreateInstance();
-        criteria.Take = 50;
-        var storesResult = await storeSearchService.SearchAsync(criteria);
+        criteria.Take = storeBatchSize;
+        criteria.Skip = 0;
 
-        foreach (var store in storesResult.Results)
+        int totalStores;
+        do
+        {
+            var storesResult = await storeSearchService.SearchAsync(criteria);
+            totalStores = storesResult.TotalCount;
+
+            await ProcessStoresAsync(storesResult.Results, action);
+
+            criteria.Skip += storeBatchSize;
+        }
+        while (criteria.Skip < totalStores);
+    }
+
+    private async Task ProcessStoresAsync(IList<Store> stores, Func<ContentfulClient, string, string, string, string, Task> action)
+    {
+        foreach (var store in stores)
         {
             var spaceIdSetting = await settingsManager.GetObjectSettingAsync(ContentfulConstants.Settings.General.SpaceId.Name, "Store", store.Id);
             var apiKeySetting = await settingsManager.GetObjectSettingAsync(ContentfulConstants.Settings.General.DeliveryApiKey.Name, "Store", store.Id);
@@ -180,7 +215,7 @@ public class ContentfulContentProvider(
             var client = new ContentfulClient(httpClient, options);
             var defaultLocale = store.DefaultLanguage ?? "en-US";
 
-            await action(client, contentTypeId ?? "page", store.Id, defaultLocale);
+            await action(client, contentTypeId ?? "page", store.Id, defaultLocale, spaceId);
         }
     }
 }
