@@ -139,7 +139,7 @@ public class ContentfulContentProvider(
     }
 
     private static async Task<IList<ContentfulEntry>> FetchEntriesByIdsAsync(
-        ContentfulClient client, string contentTypeId, IList<string> ids)
+        ContentfulClient client, string contentTypeId, List<string> ids)
     {
         var queryBuilder = new QueryBuilder<ContentfulEntry>()
             .ContentTypeIs(contentTypeId)
