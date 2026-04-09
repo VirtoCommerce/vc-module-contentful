@@ -16,6 +16,35 @@ Installing the module:
 ![Contentful CMS settings](https://github.com/user-attachments/assets/e32086ec-8b80-41cc-9e2c-e2c461c06cbe)
 
 
+# Pages Module Integration
+
+The module integrates with [Virto Pages](https://github.com/VirtoCommerce/vc-module-pages) as a content provider (`IPageContentProvider`), enabling:
+
+* **Index Rebuild** — full reindex of all Contentful pages from the admin UI
+* **Scheduled Sync** — periodic synchronization of modified pages using `sys.updatedAt` filter
+* **Webhook Push** — real-time page updates via `POST /api/pages/contentful` (existing functionality)
+
+The content provider uses the [Contentful Content Delivery API](https://www.contentful.com/developers/docs/references/content-delivery-api/) via the [Contentful .NET SDK](https://github.com/contentful/contentful.net) (`contentful.csharp`). Configure the following store-level settings:
+
+* **Contentful.SpaceId** — your Contentful space ID
+* **Contentful.DeliveryApiKey** — Content Delivery API access token
+* **Contentful.ContentTypeId** — content type ID to index (default: `page`)
+
+### Required Content Model Fields
+
+For index rebuild and scheduled sync to work correctly, Contentful page content types should include:
+
+* **`storeId`** (Short text) — the Virto Commerce store ID this page belongs to
+* **`cultureName`** (Short text) — the culture/language code (e.g., `en-US`)
+
+These fields are read directly from the entry during reindexation. When pages arrive via webhook, query parameter values are used as a fallback if the entry does not contain these fields.
+
+## References
+
+* [Contentful Content Delivery API](https://www.contentful.com/developers/docs/references/content-delivery-api/)
+* [Contentful .NET SDK](https://github.com/contentful/contentful.net)
+* [Contentful .NET SDK — Querying Content](https://contentful.github.io/contentful.net-docs/articles/querying-content.html)
+
 # Documentation
 * In Contentful create "page-virto" entity with "Title", "Content" and "Permalink" properties (you can add additional properties like layout etc). You can also create other entries as long as they start with "page" prefix, for instance "page.doc". Module supports multiple entries.
 

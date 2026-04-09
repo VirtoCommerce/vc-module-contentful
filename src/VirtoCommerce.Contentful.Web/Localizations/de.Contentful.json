@@ -1,0 +1,18 @@
+{
+  "settings": {
+    "Contentful": {
+      "SpaceId": {
+        "title": "Space-ID",
+        "description": "Contentful-Space-ID für den Zugriff auf die Content Delivery API"
+      },
+      "DeliveryApiKey": {
+        "title": "Delivery-API-Schlüssel",
+        "description": "Zugriffstoken für die Contentful Content Delivery API"
+      },
+      "ContentTypeId": {
+        "title": "Inhaltstyp-ID",
+        "description": "Contentful-Inhaltstyp-ID zur Indizierung als Seiten (Standard: page)"
+      }
+    }
+  }
+}

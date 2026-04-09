@@ -36,9 +36,10 @@ public class ContentfulEntry : Entry<Dictionary<string, Dictionary<string, objec
                 ? PageDocumentVisibility.Private
                 : PageDocumentVisibility.Public
             : PageDocumentVisibility.Private;
+        result.StoreId = GetField("storeId");
         result.StartDate = GetDateField("startDate", DateTime.MinValue);
         result.EndDate = GetDateField("endDate", DateTime.MaxValue);
-        result.CultureName = CultureName;
+        result.CultureName = GetField("cultureName") ?? CultureName;
 
         return result;
     }

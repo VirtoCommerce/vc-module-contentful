@@ -1,0 +1,18 @@
+{
+  "settings": {
+    "Contentful": {
+      "SpaceId": {
+        "title": "ID de espacio",
+        "description": "ID de espacio de Contentful para acceder a la Content Delivery API"
+      },
+      "DeliveryApiKey": {
+        "title": "Clave de Delivery API",
+        "description": "Token de acceso a la Content Delivery API de Contentful"
+      },
+      "ContentTypeId": {
+        "title": "ID de tipo de contenido",
+        "description": "ID de tipo de contenido de Contentful para indexar como páginas (predeterminado: page)"
+      }
+    }
+  }
+}
