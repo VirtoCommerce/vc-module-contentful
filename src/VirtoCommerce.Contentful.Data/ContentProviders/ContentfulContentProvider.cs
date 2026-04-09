@@ -171,12 +171,6 @@ public class ContentfulContentProvider(
         return pageDocument;
     }
 
-    private static bool IsMatchingContentType(ContentfulEntry entry, string contentTypeId)
-    {
-        var entryContentTypeId = entry?.SystemProperties?.ContentType?.SystemProperties?.Id;
-        return entryContentTypeId != null && entryContentTypeId.Equals(contentTypeId, StringComparison.OrdinalIgnoreCase);
-    }
-
     private async Task RenderContentAsync(ContentfulEntry entry, PageDocument pageDocument, string cultureName)
     {
         if (entry.Fields.TryGetValue("content", out var contentField) &&
