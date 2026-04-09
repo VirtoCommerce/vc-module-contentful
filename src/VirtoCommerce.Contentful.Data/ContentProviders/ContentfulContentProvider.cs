@@ -151,6 +151,7 @@ public class ContentfulContentProvider(
 
             entry.CultureName = cultureName;
             var pageDocument = entry.ToPageDocument();
+            pageDocument.Status = PageDocumentStatus.Published; // CDA only returns published entries
 
             await RenderContentAsync(entry, pageDocument, cultureName);
 
