@@ -46,6 +46,7 @@ public class ContentfulContentProvider(
 
             var queryBuilder = new QueryBuilder<ContentfulEntry>()
                 .ContentTypeIs(contentTypeId)
+                .LocaleIs("*")
                 .Limit(0);
 
             AddDateFilters(queryBuilder, startDate, endDate);
@@ -74,6 +75,7 @@ public class ContentfulContentProvider(
             {
                 var queryBuilder = new QueryBuilder<ContentfulEntry>()
                     .ContentTypeIs(contentTypeId)
+                    .LocaleIs("*")
                     .OrderBy("sys.updatedAt")
                     .Skip(offset)
                     .Limit(PageSize);
@@ -138,7 +140,7 @@ public class ContentfulContentProvider(
     {
         try
         {
-            var entry = await client.GetEntry<ContentfulEntry>(id);
+            var entry = await client.GetEntry<ContentfulEntry>(id, queryString: "locale=*");
             var entryContentTypeId = entry?.SystemProperties?.ContentType?.SystemProperties?.Id;
 
             if (entryContentTypeId == null || !entryContentTypeId.Equals(contentTypeId, StringComparison.OrdinalIgnoreCase))
