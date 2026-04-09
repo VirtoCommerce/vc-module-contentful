@@ -20,9 +20,10 @@ public class ContentfulEntry : Entry<Dictionary<string, Dictionary<string, objec
         result.Id = SystemProperties.Id;
         result.OuterId = SystemProperties.Id;
         result.Permalink = GetField("permalink");
-        if (Fields.TryGetValue("userGroups", out var userGroups))
+        if (Fields.TryGetValue("userGroups", out var userGroups)
+            && userGroups.TryGetValue(CultureName, out var userGroupsValue))
         {
-            result.UserGroups = ((JArray)userGroups[CultureName]).ToObject<string[]>();
+            result.UserGroups = ((JArray)userGroupsValue).ToObject<string[]>();
         }
 
         result.Title = GetField("title");
@@ -32,7 +33,8 @@ public class ContentfulEntry : Entry<Dictionary<string, Dictionary<string, objec
         result.ModifiedDate = SystemProperties.UpdatedAt;
         result.Source = "contentful";
         result.Visibility = Fields.TryGetValue("isAuthenticated", out var visibility)
-            ? (bool)visibility[CultureName]
+            && visibility.TryGetValue(CultureName, out var isAuthenticated)
+            ? (bool)isAuthenticated
                 ? PageDocumentVisibility.Private
                 : PageDocumentVisibility.Public
             : PageDocumentVisibility.Private;
