@@ -113,59 +113,62 @@ public class ContentfulContentProvider(
 
         await ForEachStoreAsync(async (client, contentTypeId, storeId, defaultLocale, _) =>
         {
-            foreach (var id in ids)
+            var remainingIds = ids.Where(id => !processedIds.Contains(id)).ToList();
+            if (remainingIds.Count == 0)
             {
-                if (processedIds.Contains(id))
+                return;
+            }
+
+            var entries = await FetchEntriesByIdsAsync(client, contentTypeId, remainingIds);
+
+            foreach (var entry in entries)
+            {
+                var entryId = entry.SystemProperties.Id;
+                if (!processedIds.Add(entryId))
                 {
                     continue;
                 }
 
-                var pageDocument = await TryGetPageDocumentAsync(client, id, contentTypeId, storeId, defaultLocale);
-                if (pageDocument != null)
-                {
-                    processedIds.Add(id);
-                    result.Add(pageDocument);
-                }
+                var pageDocument = ConvertEntryToPageDocument(entry, storeId, defaultLocale);
+                await RenderContentAsync(entry, pageDocument, entry.CultureName);
+                result.Add(pageDocument);
             }
         });
 
         return result;
     }
 
-    private async Task<PageDocument> TryGetPageDocumentAsync(
-        ContentfulClient client, string id, string contentTypeId, string storeId, string defaultLocale)
+    private static async Task<IList<ContentfulEntry>> FetchEntriesByIdsAsync(
+        ContentfulClient client, string contentTypeId, IList<string> ids)
     {
-        try
+        var queryBuilder = new QueryBuilder<ContentfulEntry>()
+            .ContentTypeIs(contentTypeId)
+            .LocaleIs("*")
+            .FieldIncludes("sys.id", ids)
+            .Limit(ids.Count);
+
+        var entries = await client.GetEntries(queryBuilder);
+        return entries.ToList();
+    }
+
+    private static PageDocument ConvertEntryToPageDocument(ContentfulEntry entry, string storeId, string defaultLocale)
+    {
+        var cultureName = entry.Fields.Values
+            .SelectMany(f => f.Keys)
+            .Distinct()
+            .OrderBy(k => k)
+            .FirstOrDefault() ?? defaultLocale;
+
+        entry.CultureName = cultureName;
+        var pageDocument = entry.ToPageDocument();
+        pageDocument.Status = PageDocumentStatus.Published; // CDA only returns published entries
+
+        if (pageDocument.StoreId.IsNullOrEmpty())
         {
-            var entry = await client.GetEntry<ContentfulEntry>(id, queryString: "locale=*");
-
-            if (!IsMatchingContentType(entry, contentTypeId))
-            {
-                return null;
-            }
-
-            var cultureName = entry.Fields.Values
-                .SelectMany(f => f.Keys)
-                .Distinct()
-                .FirstOrDefault() ?? defaultLocale;
-
-            entry.CultureName = cultureName;
-            var pageDocument = entry.ToPageDocument();
-            pageDocument.Status = PageDocumentStatus.Published; // CDA only returns published entries
-
-            await RenderContentAsync(entry, pageDocument, cultureName);
-
-            if (pageDocument.StoreId.IsNullOrEmpty())
-            {
-                pageDocument.StoreId = storeId;
-            }
-
-            return pageDocument;
+            pageDocument.StoreId = storeId;
         }
-        catch (global::Contentful.Core.Errors.ContentfulException ex) when (ex.StatusCode == 404)
-        {
-            return null;
-        }
+
+        return pageDocument;
     }
 
     private static bool IsMatchingContentType(ContentfulEntry entry, string contentTypeId)
