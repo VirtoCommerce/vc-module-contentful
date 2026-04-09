@@ -84,15 +84,12 @@ public class ContentfulContentProvider(
 
                 var result = await client.GetEntries(queryBuilder);
 
-                foreach (var entry in result)
+                allChanges.AddRange(result.Select(entry => new IndexDocumentChange
                 {
-                    allChanges.Add(new IndexDocumentChange
-                    {
-                        DocumentId = entry.SystemProperties.Id,
-                        ChangeDate = entry.SystemProperties.UpdatedAt ?? entry.SystemProperties.CreatedAt ?? DateTime.UtcNow,
-                        ChangeType = IndexDocumentChangeType.Modified,
-                    });
-                }
+                    DocumentId = entry.SystemProperties.Id,
+                    ChangeDate = entry.SystemProperties.UpdatedAt ?? entry.SystemProperties.CreatedAt ?? DateTime.UtcNow,
+                    ChangeType = IndexDocumentChangeType.Modified,
+                }));
 
                 offset += PageSize;
                 if (offset >= result.Total || !result.Any())
@@ -169,9 +166,9 @@ public class ContentfulContentProvider(
 
             return pageDocument;
         }
-        catch
+        catch (global::Contentful.Core.Errors.ContentfulException ex) when (ex.StatusCode == 404)
         {
-            // Entry not found or not accessible in this space — will retry with next store
+            // Entry not found in this space — will retry with next store
             return null;
         }
     }
