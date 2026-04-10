@@ -58,16 +58,7 @@ public static class ContentfulConstants
             };
         }
 
-        public static IEnumerable<SettingDescriptor> AllSettings
-        {
-            get
-            {
-                yield return General.SpaceId;
-                yield return General.DeliveryApiKey;
-                yield return General.ContentTypeId;
-                yield return General.PreviewApiKey;
-            }
-        }
+        public static IEnumerable<SettingDescriptor> AllSettings => StoreLevelSettings;
 
         public static IEnumerable<SettingDescriptor> StoreLevelSettings
         {
