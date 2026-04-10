@@ -1,4 +1,3 @@
-using System.Collections.Generic;
 using VirtoCommerce.Platform.Core.Settings;
 
 namespace VirtoCommerce.Contentful.Core;
@@ -28,7 +27,7 @@ public static class ContentfulConstants
             public static SettingDescriptor SpaceId { get; } = new()
             {
                 Name = "Contentful.SpaceId",
-                GroupName = "Contentful",
+                GroupName = "CMS|Contentful",
                 ValueType = SettingValueType.ShortText,
                 DefaultValue = string.Empty,
             };
@@ -36,7 +35,7 @@ public static class ContentfulConstants
             public static SettingDescriptor DeliveryApiKey { get; } = new()
             {
                 Name = "Contentful.DeliveryApiKey",
-                GroupName = "Contentful",
+                GroupName = "CMS|Contentful",
                 ValueType = SettingValueType.SecureString,
                 DefaultValue = string.Empty,
             };
@@ -44,7 +43,7 @@ public static class ContentfulConstants
             public static SettingDescriptor ContentTypeId { get; } = new()
             {
                 Name = "Contentful.ContentTypeId",
-                GroupName = "Contentful",
+                GroupName = "CMS|Contentful",
                 ValueType = SettingValueType.ShortText,
                 DefaultValue = PageContentTypePrefix,
             };
