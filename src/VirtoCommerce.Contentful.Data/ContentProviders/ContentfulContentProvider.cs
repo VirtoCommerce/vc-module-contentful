@@ -1,8 +1,5 @@
-using Contentful.Core;
-using Contentful.Core.Configuration;
-using Contentful.Core.Search;
+using Newtonsoft.Json.Linq;
 using VirtoCommerce.Contentful.Core;
-using VirtoCommerce.Contentful.Core.Models;
 using VirtoCommerce.Contentful.Core.Services;
 using VirtoCommerce.Pages.Core.ContentProviders;
 using VirtoCommerce.Pages.Core.Models;
@@ -16,7 +13,7 @@ using VirtoCommerce.StoreModule.Core.Services;
 namespace VirtoCommerce.Contentful.Data.ContentProviders;
 
 public class ContentfulContentProvider(
-    IHttpClientFactory httpClientFactory,
+    IContentfulApiClient apiClient,
     IStoreSearchService storeSearchService,
     ISettingsManager settingsManager,
     IContentfulRenderer contentfulRenderer)
@@ -32,22 +29,15 @@ public class ContentfulContentProvider(
         long totalCount = 0;
         var processedSpaces = new HashSet<string>();
 
-        await ForEachStoreAsync(async (client, contentTypeId, _, _, spaceId) =>
+        await ForEachStoreAsync(async (spaceId, accessToken, contentTypeId, _, _) =>
         {
             if (!processedSpaces.Add($"{spaceId}:{contentTypeId}"))
             {
                 return;
             }
 
-            var queryBuilder = new QueryBuilder<ContentfulEntry>()
-                .ContentTypeIs(contentTypeId)
-                .LocaleIs("*")
-                .Limit(0);
-
-            AddDateFilters(queryBuilder, startDate, endDate);
-
-            var result = await client.GetEntries(queryBuilder);
-            totalCount += result.Total;
+            var response = await apiClient.GetEntriesAsync(spaceId, accessToken, contentTypeId, limit: 0, skip: 0, updatedAfter: startDate, updatedBefore: endDate);
+            totalCount += response.Total;
         });
 
         return totalCount;
@@ -58,7 +48,7 @@ public class ContentfulContentProvider(
         var allChanges = new List<IndexDocumentChange>();
         var processedSpaces = new HashSet<string>();
 
-        await ForEachStoreAsync(async (client, contentTypeId, _, _, spaceId) =>
+        await ForEachStoreAsync(async (spaceId, accessToken, contentTypeId, _, _) =>
         {
             if (!processedSpaces.Add($"{spaceId}:{contentTypeId}"))
             {
@@ -68,26 +58,17 @@ public class ContentfulContentProvider(
             var offset = 0;
             while (true)
             {
-                var queryBuilder = new QueryBuilder<ContentfulEntry>()
-                    .ContentTypeIs(contentTypeId)
-                    .LocaleIs("*")
-                    .OrderBy("sys.updatedAt")
-                    .Skip(offset)
-                    .Limit(PageSize);
+                var response = await apiClient.GetEntriesAsync(spaceId, accessToken, contentTypeId, limit: PageSize, skip: offset, updatedAfter: startDate, updatedBefore: endDate);
 
-                AddDateFilters(queryBuilder, startDate, endDate);
-
-                var result = await client.GetEntries(queryBuilder);
-
-                allChanges.AddRange(result.Select(entry => new IndexDocumentChange
+                allChanges.AddRange(response.Items.Select(item => new IndexDocumentChange
                 {
-                    DocumentId = entry.SystemProperties.Id,
-                    ChangeDate = entry.SystemProperties.UpdatedAt ?? entry.SystemProperties.CreatedAt ?? DateTime.UtcNow,
+                    DocumentId = item.SelectToken("sys.id")?.ToString(),
+                    ChangeDate = item.SelectToken("sys.updatedAt")?.ToObject<DateTime>() ?? DateTime.UtcNow,
                     ChangeType = IndexDocumentChangeType.Modified,
                 }));
 
                 offset += PageSize;
-                if (offset >= result.Total || !result.Any())
+                if (offset >= response.Total || response.Items.Count == 0)
                 {
                     break;
                 }
@@ -106,7 +87,7 @@ public class ContentfulContentProvider(
         var result = new List<PageDocument>();
         var processedIds = new HashSet<string>();
 
-        await ForEachStoreAsync(async (client, contentTypeId, storeId, defaultLocale, _) =>
+        await ForEachStoreAsync(async (spaceId, accessToken, contentTypeId, storeId, defaultLocale) =>
         {
             var remainingIds = ids.Where(id => !processedIds.Contains(id)).ToList();
             if (remainingIds.Count == 0)
@@ -114,18 +95,17 @@ public class ContentfulContentProvider(
                 return;
             }
 
-            var entries = await FetchEntriesByIdsAsync(client, contentTypeId, remainingIds);
+            var response = await apiClient.GetEntriesByIdsAsync(spaceId, accessToken, contentTypeId, remainingIds);
 
-            foreach (var entry in entries)
+            foreach (var item in response.Items)
             {
-                var entryId = entry.SystemProperties.Id;
-                if (!processedIds.Add(entryId))
+                var entryId = item.SelectToken("sys.id")?.ToString();
+                if (entryId == null || !processedIds.Add(entryId))
                 {
                     continue;
                 }
 
-                var pageDocument = ConvertEntryToPageDocument(entry, storeId, defaultLocale);
-                await RenderContentAsync(entry, pageDocument, entry.CultureName);
+                var pageDocument = await ConvertItemToPageDocumentAsync(item, storeId, defaultLocale);
                 result.Add(pageDocument);
             }
         });
@@ -133,30 +113,43 @@ public class ContentfulContentProvider(
         return result;
     }
 
-    private static async Task<IList<ContentfulEntry>> FetchEntriesByIdsAsync(
-        ContentfulClient client, string contentTypeId, List<string> ids)
+    private async Task<PageDocument> ConvertItemToPageDocumentAsync(JObject item, string storeId, string defaultLocale)
     {
-        var queryBuilder = new QueryBuilder<ContentfulEntry>()
-            .ContentTypeIs(contentTypeId)
-            .LocaleIs("*")
-            .FieldIncludes("sys.id", ids)
-            .Limit(ids.Count);
+        var fields = item["fields"] as JObject;
+        var cultureName = DetectLocale(fields) ?? defaultLocale;
 
-        var entries = await client.GetEntries(queryBuilder);
-        return entries.ToList();
-    }
+        var pageDocument = AbstractTypeFactory<PageDocument>.TryCreateInstance();
+        pageDocument.Id = item.SelectToken("sys.id")?.ToString();
+        pageDocument.OuterId = pageDocument.Id;
+        pageDocument.CreatedDate = item.SelectToken("sys.createdAt")?.ToObject<DateTime>() ?? DateTime.UtcNow;
+        pageDocument.ModifiedDate = item.SelectToken("sys.updatedAt")?.ToObject<DateTime>();
+        pageDocument.Source = "contentful";
+        pageDocument.MimeType = "text/html";
+        pageDocument.Status = PageDocumentStatus.Published;
 
-    private static PageDocument ConvertEntryToPageDocument(ContentfulEntry entry, string storeId, string defaultLocale)
-    {
-        var cultureName = entry.Fields.Values
-            .SelectMany(f => f.Keys)
-            .Distinct()
-            .OrderBy(k => k)
-            .FirstOrDefault() ?? defaultLocale;
+        pageDocument.Title = GetLocalizedField(fields, "title", cultureName);
+        pageDocument.Description = GetLocalizedField(fields, "description", cultureName);
+        pageDocument.Permalink = GetLocalizedField(fields, "permalink", cultureName);
+        pageDocument.StoreId = GetLocalizedField(fields, "storeId", cultureName);
+        pageDocument.CultureName = GetLocalizedField(fields, "cultureName", cultureName) ?? cultureName;
 
-        entry.CultureName = cultureName;
-        var pageDocument = entry.ToPageDocument();
-        pageDocument.Status = PageDocumentStatus.Published; // CDA only returns published entries
+        var isPublic = GetLocalizedField(fields, "isAuthenticated", cultureName);
+        pageDocument.Visibility = string.Equals(isPublic, "false", StringComparison.OrdinalIgnoreCase)
+            ? PageDocumentVisibility.Public
+            : PageDocumentVisibility.Private;
+
+        var userGroupsToken = GetLocalizedToken(fields, "userGroups", cultureName);
+        pageDocument.UserGroups = userGroupsToken?.ToObject<string[]>();
+
+        pageDocument.StartDate = GetLocalizedToken(fields, "startDate", cultureName)?.ToObject<DateTime?>();
+        pageDocument.EndDate = GetLocalizedToken(fields, "endDate", cultureName)?.ToObject<DateTime?>() ?? DateTime.MaxValue;
+
+        // Render rich text content
+        var contentToken = GetLocalizedToken(fields, "content", cultureName);
+        if (contentToken != null)
+        {
+            pageDocument.Content = await contentfulRenderer.RenderContent(contentToken.ToString());
+        }
 
         if (pageDocument.StoreId.IsNullOrEmpty())
         {
@@ -166,29 +159,25 @@ public class ContentfulContentProvider(
         return pageDocument;
     }
 
-    private async Task RenderContentAsync(ContentfulEntry entry, PageDocument pageDocument, string cultureName)
+    private static string DetectLocale(JObject fields)
     {
-        if (entry.Fields.TryGetValue("content", out var contentField) &&
-            contentField.TryGetValue(cultureName, out var contentJson))
-        {
-            pageDocument.Content = await contentfulRenderer.RenderContent(contentJson?.ToString());
-        }
+        return fields?.Properties()
+            .Select(p => (p.Value as JObject)?.Properties().FirstOrDefault()?.Name)
+            .FirstOrDefault(name => name != null);
     }
 
-    private static void AddDateFilters(QueryBuilder<ContentfulEntry> queryBuilder, DateTime? startDate, DateTime? endDate)
+    private static string GetLocalizedField(JObject fields, string fieldName, string locale)
     {
-        if (startDate.HasValue)
-        {
-            queryBuilder.FieldGreaterThan("sys.updatedAt", startDate.Value.ToUniversalTime().ToString("yyyy-MM-ddTHH:mm:ssK"));
-        }
-
-        if (endDate.HasValue)
-        {
-            queryBuilder.FieldLessThan("sys.updatedAt", endDate.Value.ToUniversalTime().ToString("yyyy-MM-ddTHH:mm:ssK"));
-        }
+        return GetLocalizedToken(fields, fieldName, locale)?.ToString();
     }
 
-    private async Task ForEachStoreAsync(Func<ContentfulClient, string, string, string, string, Task> action)
+    private static JToken GetLocalizedToken(JObject fields, string fieldName, string locale)
+    {
+        var field = fields?[fieldName] as JObject;
+        return field?[locale];
+    }
+
+    private async Task ForEachStoreAsync(Func<string, string, string, string, string, Task> action)
     {
         const int storeBatchSize = 50;
         var criteria = AbstractTypeFactory<StoreSearchCriteria>.TryCreateInstance();
@@ -208,7 +197,7 @@ public class ContentfulContentProvider(
         while (criteria.Skip < totalStores);
     }
 
-    private async Task ProcessStoresAsync(IList<Store> stores, Func<ContentfulClient, string, string, string, string, Task> action)
+    private async Task ProcessStoresAsync(IList<Store> stores, Func<string, string, string, string, string, Task> action)
     {
         foreach (var store in stores)
         {
@@ -225,16 +214,14 @@ public class ContentfulContentProvider(
                 continue;
             }
 
-            var httpClient = httpClientFactory.CreateClient("Contentful");
-            var options = new ContentfulOptions
-            {
-                SpaceId = spaceId,
-                DeliveryApiKey = apiKey,
-            };
-            var client = new ContentfulClient(httpClient, options);
             var defaultLocale = store.DefaultLanguage ?? "en-US";
 
-            await action(client, string.IsNullOrEmpty(contentTypeId) ? ContentfulConstants.PageContentTypePrefix : contentTypeId, store.Id, defaultLocale, spaceId);
+            await action(
+                spaceId,
+                apiKey,
+                string.IsNullOrEmpty(contentTypeId) ? ContentfulConstants.PageContentTypePrefix : contentTypeId,
+                store.Id,
+                defaultLocale);
         }
     }
 }

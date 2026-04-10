@@ -21,6 +21,7 @@ public class Module : IModule
         serviceCollection.AddHttpClient("Contentful");
         serviceCollection.AddTransient<IContentfulRenderer, ContentfulRenderer>();
         serviceCollection.AddTransient<IContentfulReader, ContentfulReader>();
+        serviceCollection.AddTransient<IContentfulApiClient, ContentfulApiClient>();
         serviceCollection.AddTransient<ContentfulContentProvider>();
     }
 
