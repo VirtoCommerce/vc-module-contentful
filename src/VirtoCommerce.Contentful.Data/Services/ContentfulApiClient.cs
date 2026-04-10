@@ -11,63 +11,56 @@ namespace VirtoCommerce.Contentful.Data.Services;
 
 public class ContentfulApiClient(IHttpClientFactory httpClientFactory) : IContentfulApiClient
 {
-    private const string BaseUrl = "https://cdn.contentful.com";
+#pragma warning disable S1075 // Contentful API base URLs are fixed
+    private const string DeliveryBaseUrl = "https://cdn.contentful.com";
+    private const string PreviewBaseUrl = "https://preview.contentful.com";
+#pragma warning restore S1075
 
-    public async Task<ContentfulQueryResponse> GetEntriesAsync(
-        string spaceId,
-        string accessToken,
-        string contentTypeId,
-        int limit,
-        int skip,
-        DateTime? updatedAfter = null,
-        DateTime? updatedBefore = null)
+    public async Task<ContentfulQueryResponse> GetEntriesAsync(ContentfulQueryRequest request)
     {
         var queryParams = new List<string>
         {
-            $"content_type={Uri.EscapeDataString(contentTypeId)}",
+            $"content_type={Uri.EscapeDataString(request.ContentTypeId)}",
             "locale=*",
-            $"limit={limit}",
-            $"skip={skip}",
+            $"limit={request.Limit}",
+            $"skip={request.Skip}",
             "order=sys.updatedAt",
         };
 
-        if (updatedAfter.HasValue)
+        if (request.UpdatedAfter.HasValue)
         {
-            queryParams.Add($"sys.updatedAt[gte]={updatedAfter.Value.ToUniversalTime():yyyy-MM-ddTHH:mm:ssZ}");
+            queryParams.Add($"sys.updatedAt[gte]={request.UpdatedAfter.Value.ToUniversalTime():yyyy-MM-ddTHH:mm:ssZ}");
         }
 
-        if (updatedBefore.HasValue)
+        if (request.UpdatedBefore.HasValue)
         {
-            queryParams.Add($"sys.updatedAt[lte]={updatedBefore.Value.ToUniversalTime():yyyy-MM-ddTHH:mm:ssZ}");
+            queryParams.Add($"sys.updatedAt[lte]={request.UpdatedBefore.Value.ToUniversalTime():yyyy-MM-ddTHH:mm:ssZ}");
         }
 
-        return await FetchEntriesAsync(spaceId, accessToken, queryParams);
+        return await FetchAsync(request, queryParams);
     }
 
-    public async Task<ContentfulQueryResponse> GetEntriesByIdsAsync(
-        string spaceId,
-        string accessToken,
-        string contentTypeId,
-        IList<string> ids)
+    public async Task<ContentfulQueryResponse> GetEntriesByIdsAsync(ContentfulQueryRequest request, IList<string> ids)
     {
         var idsValue = string.Join(",", ids);
         var queryParams = new List<string>
         {
-            $"content_type={Uri.EscapeDataString(contentTypeId)}",
+            $"content_type={Uri.EscapeDataString(request.ContentTypeId)}",
             "locale=*",
             $"sys.id[in]={Uri.EscapeDataString(idsValue)}",
             $"limit={ids.Count}",
         };
 
-        return await FetchEntriesAsync(spaceId, accessToken, queryParams);
+        return await FetchAsync(request, queryParams);
     }
 
-    private async Task<ContentfulQueryResponse> FetchEntriesAsync(string spaceId, string accessToken, List<string> queryParams)
+    private async Task<ContentfulQueryResponse> FetchAsync(ContentfulQueryRequest request, List<string> queryParams)
     {
-        var url = $"{BaseUrl}/spaces/{Uri.EscapeDataString(spaceId)}/entries?{string.Join("&", queryParams)}";
+        var baseUrl = request.UsePreviewApi ? PreviewBaseUrl : DeliveryBaseUrl;
+        var url = $"{baseUrl}/spaces/{Uri.EscapeDataString(request.SpaceId)}/entries?{string.Join("&", queryParams)}";
 
         var client = httpClientFactory.CreateClient("Contentful");
-        client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", accessToken);
+        client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", request.AccessToken);
 
         var response = await client.GetAsync(url);
         response.EnsureSuccessStatusCode();

@@ -12,6 +12,10 @@
       "ContentTypeId": {
         "title": "コンテンツタイプID",
         "description": "ページとしてインデックスするContentfulコンテンツタイプID（デフォルト：page）"
+      },
+      "PreviewApiKey": {
+        "title": "Preview APIキー",
+        "description": "Contentful Content Preview APIトークン。設定すると、インデックス再構築に下書きエントリが含まれます"
       }
     }
   }

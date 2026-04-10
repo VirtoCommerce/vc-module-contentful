@@ -12,6 +12,10 @@
       "ContentTypeId": {
         "title": "ID de tipo de contenido",
         "description": "ID de tipo de contenido de Contentful para indexar como páginas (predeterminado: page)"
+      },
+      "PreviewApiKey": {
+        "title": "Clave de Preview API",
+        "description": "Token de Contentful Content Preview API. Cuando se configura, los borradores se incluyen en la reindexación"
       }
     }
   }

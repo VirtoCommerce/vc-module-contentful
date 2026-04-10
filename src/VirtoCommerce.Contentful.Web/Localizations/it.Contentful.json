@@ -12,6 +12,10 @@
       "ContentTypeId": {
         "title": "ID tipo di contenuto",
         "description": "ID tipo di contenuto Contentful da indicizzare come pagine (predefinito: page)"
+      },
+      "PreviewApiKey": {
+        "title": "Chiave Preview API",
+        "description": "Token Contentful Content Preview API. Se impostato, le bozze vengono incluse nella ricostruzione dell'indice"
       }
     }
   }

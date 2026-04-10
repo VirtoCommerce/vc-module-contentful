@@ -7,8 +7,20 @@ namespace VirtoCommerce.Contentful.Core.Services;
 
 public interface IContentfulApiClient
 {
-    Task<ContentfulQueryResponse> GetEntriesAsync(string spaceId, string accessToken, string contentTypeId, int limit, int skip, DateTime? updatedAfter = null, DateTime? updatedBefore = null);
-    Task<ContentfulQueryResponse> GetEntriesByIdsAsync(string spaceId, string accessToken, string contentTypeId, IList<string> ids);
+    Task<ContentfulQueryResponse> GetEntriesAsync(ContentfulQueryRequest request);
+    Task<ContentfulQueryResponse> GetEntriesByIdsAsync(ContentfulQueryRequest request, IList<string> ids);
+}
+
+public class ContentfulQueryRequest
+{
+    public string SpaceId { get; set; }
+    public string AccessToken { get; set; }
+    public string ContentTypeId { get; set; }
+    public bool UsePreviewApi { get; set; }
+    public int Limit { get; set; }
+    public int Skip { get; set; }
+    public DateTime? UpdatedAfter { get; set; }
+    public DateTime? UpdatedBefore { get; set; }
 }
 
 public class ContentfulQueryResponse

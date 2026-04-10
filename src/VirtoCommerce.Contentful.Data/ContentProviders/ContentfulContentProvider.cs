@@ -20,6 +20,7 @@ public class ContentfulContentProvider(
     : IPageContentProvider
 {
     private const int PageSize = 100;
+    private const string StoreObjectType = "Store";
 
     public string ProviderName => "Contentful";
     public bool SupportsReindexation => true;
@@ -29,14 +30,18 @@ public class ContentfulContentProvider(
         long totalCount = 0;
         var processedSpaces = new HashSet<string>();
 
-        await ForEachStoreAsync(async (spaceId, accessToken, contentTypeId, _, _) =>
+        await ForEachStoreAsync(async (request, _, _) =>
         {
-            if (!processedSpaces.Add($"{spaceId}:{contentTypeId}"))
+            if (!processedSpaces.Add($"{request.SpaceId}:{request.ContentTypeId}"))
             {
                 return;
             }
 
-            var response = await apiClient.GetEntriesAsync(spaceId, accessToken, contentTypeId, limit: 0, skip: 0, updatedAfter: startDate, updatedBefore: endDate);
+            request.Limit = 0;
+            request.UpdatedAfter = startDate;
+            request.UpdatedBefore = endDate;
+
+            var response = await apiClient.GetEntriesAsync(request);
             totalCount += response.Total;
         });
 
@@ -48,9 +53,9 @@ public class ContentfulContentProvider(
         var allChanges = new List<IndexDocumentChange>();
         var processedSpaces = new HashSet<string>();
 
-        await ForEachStoreAsync(async (spaceId, accessToken, contentTypeId, _, _) =>
+        await ForEachStoreAsync(async (request, _, _) =>
         {
-            if (!processedSpaces.Add($"{spaceId}:{contentTypeId}"))
+            if (!processedSpaces.Add($"{request.SpaceId}:{request.ContentTypeId}"))
             {
                 return;
             }
@@ -58,7 +63,12 @@ public class ContentfulContentProvider(
             var offset = 0;
             while (true)
             {
-                var response = await apiClient.GetEntriesAsync(spaceId, accessToken, contentTypeId, limit: PageSize, skip: offset, updatedAfter: startDate, updatedBefore: endDate);
+                request.Limit = PageSize;
+                request.Skip = offset;
+                request.UpdatedAfter = startDate;
+                request.UpdatedBefore = endDate;
+
+                var response = await apiClient.GetEntriesAsync(request);
 
                 allChanges.AddRange(response.Items.Select(item => new IndexDocumentChange
                 {
@@ -87,7 +97,7 @@ public class ContentfulContentProvider(
         var result = new List<PageDocument>();
         var processedIds = new HashSet<string>();
 
-        await ForEachStoreAsync(async (spaceId, accessToken, contentTypeId, storeId, defaultLocale) =>
+        await ForEachStoreAsync(async (request, storeId, defaultLocale) =>
         {
             var remainingIds = ids.Where(id => !processedIds.Contains(id)).ToList();
             if (remainingIds.Count == 0)
@@ -95,7 +105,7 @@ public class ContentfulContentProvider(
                 return;
             }
 
-            var response = await apiClient.GetEntriesByIdsAsync(spaceId, accessToken, contentTypeId, remainingIds);
+            var response = await apiClient.GetEntriesByIdsAsync(request, remainingIds);
 
             foreach (var item in response.Items)
             {
@@ -125,7 +135,10 @@ public class ContentfulContentProvider(
         pageDocument.ModifiedDate = item.SelectToken("sys.updatedAt")?.ToObject<DateTime>();
         pageDocument.Source = "contentful";
         pageDocument.MimeType = "text/html";
-        pageDocument.Status = PageDocumentStatus.Published;
+
+        // Preview API returns drafts; Delivery API returns only published
+        var publishedVersion = item.SelectToken("sys.publishedVersion");
+        pageDocument.Status = publishedVersion != null ? PageDocumentStatus.Published : PageDocumentStatus.Draft;
 
         pageDocument.Title = GetLocalizedField(fields, "title", cultureName);
         pageDocument.Description = GetLocalizedField(fields, "description", cultureName);
@@ -134,9 +147,8 @@ public class ContentfulContentProvider(
         pageDocument.CultureName = GetLocalizedField(fields, "cultureName", cultureName) ?? cultureName;
 
         var isPublic = GetLocalizedField(fields, "isAuthenticated", cultureName);
-        pageDocument.Visibility = string.Equals(isPublic, "false", StringComparison.OrdinalIgnoreCase)
-            ? PageDocumentVisibility.Public
-            : PageDocumentVisibility.Private;
+        var isPrivate = !string.Equals(isPublic, "false", StringComparison.OrdinalIgnoreCase);
+        pageDocument.Visibility = isPrivate ? PageDocumentVisibility.Private : PageDocumentVisibility.Public;
 
         var userGroupsToken = GetLocalizedToken(fields, "userGroups", cultureName);
         pageDocument.UserGroups = userGroupsToken?.ToObject<string[]>();
@@ -177,7 +189,7 @@ public class ContentfulContentProvider(
         return field?[locale];
     }
 
-    private async Task ForEachStoreAsync(Func<string, string, string, string, string, Task> action)
+    private async Task ForEachStoreAsync(Func<ContentfulQueryRequest, string, string, Task> action)
     {
         const int storeBatchSize = 50;
         var criteria = AbstractTypeFactory<StoreSearchCriteria>.TryCreateInstance();
@@ -197,31 +209,39 @@ public class ContentfulContentProvider(
         while (criteria.Skip < totalStores);
     }
 
-    private async Task ProcessStoresAsync(IList<Store> stores, Func<string, string, string, string, string, Task> action)
+    private async Task ProcessStoresAsync(IList<Store> stores, Func<ContentfulQueryRequest, string, string, Task> action)
     {
         foreach (var store in stores)
         {
-            var spaceIdSetting = await settingsManager.GetObjectSettingAsync(ContentfulConstants.Settings.General.SpaceId.Name, "Store", store.Id);
-            var apiKeySetting = await settingsManager.GetObjectSettingAsync(ContentfulConstants.Settings.General.DeliveryApiKey.Name, "Store", store.Id);
-            var contentTypeIdSetting = await settingsManager.GetObjectSettingAsync(ContentfulConstants.Settings.General.ContentTypeId.Name, "Store", store.Id);
+            var spaceIdSetting = await settingsManager.GetObjectSettingAsync(ContentfulConstants.Settings.General.SpaceId.Name, StoreObjectType, store.Id);
+            var deliveryKeySetting = await settingsManager.GetObjectSettingAsync(ContentfulConstants.Settings.General.DeliveryApiKey.Name, StoreObjectType, store.Id);
+            var contentTypeIdSetting = await settingsManager.GetObjectSettingAsync(ContentfulConstants.Settings.General.ContentTypeId.Name, StoreObjectType, store.Id);
+            var previewKeySetting = await settingsManager.GetObjectSettingAsync(ContentfulConstants.Settings.General.PreviewApiKey.Name, StoreObjectType, store.Id);
 
             var spaceId = spaceIdSetting?.Value as string;
-            var apiKey = apiKeySetting?.Value as string;
+            var deliveryKey = deliveryKeySetting?.Value as string;
+            var previewKey = previewKeySetting?.Value as string;
             var contentTypeId = contentTypeIdSetting?.Value as string;
 
-            if (string.IsNullOrEmpty(spaceId) || string.IsNullOrEmpty(apiKey))
+            if (string.IsNullOrEmpty(spaceId) || string.IsNullOrEmpty(deliveryKey))
             {
                 continue;
             }
 
+            // Use Preview API when token is configured (returns drafts + published)
+            var usePreview = !string.IsNullOrEmpty(previewKey);
+
+            var request = new ContentfulQueryRequest
+            {
+                SpaceId = spaceId,
+                AccessToken = usePreview ? previewKey : deliveryKey,
+                ContentTypeId = string.IsNullOrEmpty(contentTypeId) ? ContentfulConstants.PageContentTypePrefix : contentTypeId,
+                UsePreviewApi = usePreview,
+            };
+
             var defaultLocale = store.DefaultLanguage ?? "en-US";
 
-            await action(
-                spaceId,
-                apiKey,
-                string.IsNullOrEmpty(contentTypeId) ? ContentfulConstants.PageContentTypePrefix : contentTypeId,
-                store.Id,
-                defaultLocale);
+            await action(request, store.Id, defaultLocale);
         }
     }
 }

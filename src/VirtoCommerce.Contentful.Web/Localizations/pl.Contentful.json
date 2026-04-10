@@ -12,6 +12,10 @@
       "ContentTypeId": {
         "title": "ID typu zawartości",
         "description": "ID typu zawartości Contentful do indeksowania jako strony (domyślnie: page)"
+      },
+      "PreviewApiKey": {
+        "title": "Klucz Preview API",
+        "description": "Token Contentful Content Preview API. Po ustawieniu wersje robocze są uwzględniane przy przebudowie indeksu"
       }
     }
   }

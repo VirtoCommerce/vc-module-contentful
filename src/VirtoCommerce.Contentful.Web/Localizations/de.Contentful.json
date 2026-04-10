@@ -12,6 +12,10 @@
       "ContentTypeId": {
         "title": "Inhaltstyp-ID",
         "description": "Contentful-Inhaltstyp-ID zur Indizierung als Seiten (Standard: page)"
+      },
+      "PreviewApiKey": {
+        "title": "Preview-API-Schlüssel",
+        "description": "Contentful Content Preview API Token. Wenn gesetzt, werden Entwürfe bei der Neuindizierung einbezogen"
       }
     }
   }

@@ -12,6 +12,10 @@
       "ContentTypeId": {
         "title": "Content Type ID",
         "description": "Contentful content type ID to index as pages (default: page)"
+      },
+      "PreviewApiKey": {
+        "title": "Preview API Key",
+        "description": "Contentful Content Preview API token. When set, draft entries are included in index rebuild"
       }
     }
   }

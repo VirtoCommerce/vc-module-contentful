@@ -12,6 +12,10 @@
       "ContentTypeId": {
         "title": "ID de type de contenu",
         "description": "ID de type de contenu Contentful à indexer comme pages (par défaut : page)"
+      },
+      "PreviewApiKey": {
+        "title": "Clé Preview API",
+        "description": "Jeton Contentful Content Preview API. Lorsqu'il est défini, les brouillons sont inclus dans la reconstruction de l'index"
       }
     }
   }

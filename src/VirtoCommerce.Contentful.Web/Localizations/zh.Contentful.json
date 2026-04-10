@@ -12,6 +12,10 @@
       "ContentTypeId": {
         "title": "内容类型ID",
         "description": "要作为页面索引的Contentful内容类型ID（默认值：page）"
+      },
+      "PreviewApiKey": {
+        "title": "Preview API密钥",
+        "description": "设置后，索引重建将包含草稿内容"
       }
     }
   }

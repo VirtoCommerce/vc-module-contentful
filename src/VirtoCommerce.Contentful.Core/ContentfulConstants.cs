@@ -5,6 +5,7 @@ namespace VirtoCommerce.Contentful.Core;
 public static class ContentfulConstants
 {
     public const string PageContentTypePrefix = "page";
+    private const string SettingsGroupName = "CMS|Contentful";
 
     public static class Security
     {
@@ -27,7 +28,7 @@ public static class ContentfulConstants
             public static SettingDescriptor SpaceId { get; } = new()
             {
                 Name = "Contentful.SpaceId",
-                GroupName = "CMS|Contentful",
+                GroupName = SettingsGroupName,
                 ValueType = SettingValueType.ShortText,
                 DefaultValue = string.Empty,
             };
@@ -35,7 +36,7 @@ public static class ContentfulConstants
             public static SettingDescriptor DeliveryApiKey { get; } = new()
             {
                 Name = "Contentful.DeliveryApiKey",
-                GroupName = "CMS|Contentful",
+                GroupName = SettingsGroupName,
                 ValueType = SettingValueType.SecureString,
                 DefaultValue = string.Empty,
             };
@@ -43,9 +44,17 @@ public static class ContentfulConstants
             public static SettingDescriptor ContentTypeId { get; } = new()
             {
                 Name = "Contentful.ContentTypeId",
-                GroupName = "CMS|Contentful",
+                GroupName = SettingsGroupName,
                 ValueType = SettingValueType.ShortText,
                 DefaultValue = PageContentTypePrefix,
+            };
+
+            public static SettingDescriptor PreviewApiKey { get; } = new()
+            {
+                Name = "Contentful.PreviewApiKey",
+                GroupName = SettingsGroupName,
+                ValueType = SettingValueType.SecureString,
+                DefaultValue = string.Empty,
             };
         }
 
@@ -56,6 +65,7 @@ public static class ContentfulConstants
                 yield return General.SpaceId;
                 yield return General.DeliveryApiKey;
                 yield return General.ContentTypeId;
+                yield return General.PreviewApiKey;
             }
         }
 
@@ -66,6 +76,7 @@ public static class ContentfulConstants
                 yield return General.SpaceId;
                 yield return General.DeliveryApiKey;
                 yield return General.ContentTypeId;
+                yield return General.PreviewApiKey;
             }
         }
     }
