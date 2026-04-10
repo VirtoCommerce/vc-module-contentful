@@ -153,7 +153,7 @@ public class ContentfulContentProvider(
         var userGroupsToken = GetLocalizedToken(fields, "userGroups", cultureName);
         pageDocument.UserGroups = userGroupsToken?.ToObject<string[]>();
 
-        pageDocument.StartDate = GetLocalizedToken(fields, "startDate", cultureName)?.ToObject<DateTime?>();
+        pageDocument.StartDate = GetLocalizedToken(fields, "startDate", cultureName)?.ToObject<DateTime?>() ?? DateTime.MinValue;
         pageDocument.EndDate = GetLocalizedToken(fields, "endDate", cultureName)?.ToObject<DateTime?>() ?? DateTime.MaxValue;
 
         // Render rich text content
