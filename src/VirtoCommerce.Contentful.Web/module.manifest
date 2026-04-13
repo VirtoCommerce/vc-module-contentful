@@ -9,7 +9,7 @@
     <dependency id="VirtoCommerce.Catalog" version="3.1000.0" />
     <dependency id="VirtoCommerce.Content" version="3.1000.0" />
     <dependency id="VirtoCommerce.Core" version="3.1000.0" />
-    <dependency id="VirtoCommerce.Pages" version="3.1004.0-alpha.53-vcst-4848" optional="true" />
+    <dependency id="VirtoCommerce.Pages" version="3.1004.0-alpha.58-vcst-4848" optional="true" />
     <dependency id="VirtoCommerce.Store" version="3.1000.0" />
   </dependencies>
 

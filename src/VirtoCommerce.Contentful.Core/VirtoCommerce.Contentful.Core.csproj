@@ -7,7 +7,7 @@
 
   <ItemGroup>
     <PackageReference Include="contentful.csharp" Version="8.3.0" />
-    <PackageReference Include="VirtoCommerce.Pages.Core" Version="3.1004.0-alpha.53-vcst-4848" />
+    <PackageReference Include="VirtoCommerce.Pages.Core" Version="3.1004.0-alpha.58-vcst-4848" />
     <PackageReference Include="VirtoCommerce.Platform.Core" Version="3.1002.0" />
     <PackageReference Include="VirtoCommerce.StoreModule.Core" Version="3.1000.0" />
   </ItemGroup>
