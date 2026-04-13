@@ -102,7 +102,7 @@ public class ContentfulContentProvider(
                     continue;
                 }
 
-                var pageDocument = await ConvertItemToPageDocumentAsync(item, storeId, defaultLocale);
+                var pageDocument = await ConvertItemToPageDocumentAsync(item, storeId, defaultLocale, request.UsePreviewApi);
                 result.Add(pageDocument);
             }
         });
@@ -110,7 +110,7 @@ public class ContentfulContentProvider(
         return result;
     }
 
-    private async Task<PageDocument> ConvertItemToPageDocumentAsync(JObject item, string storeId, string defaultLocale)
+    private async Task<PageDocument> ConvertItemToPageDocumentAsync(JObject item, string storeId, string defaultLocale, bool usePreviewApi)
     {
         var fields = item["fields"] as JObject;
         var cultureName = DetectLocale(fields) ?? defaultLocale;
@@ -123,9 +123,17 @@ public class ContentfulContentProvider(
         pageDocument.Source = "contentful";
         pageDocument.MimeType = "text/html";
 
-        // Preview API returns drafts; Delivery API returns only published
-        var publishedVersion = item.SelectToken("sys.publishedVersion");
-        pageDocument.Status = publishedVersion != null ? PageDocumentStatus.Published : PageDocumentStatus.Draft;
+        // CDA (Delivery API) only returns published content and does not include sys.publishedVersion,
+        // so all CDA entries are Published. CPA (Preview API) includes sys.publishedVersion to distinguish drafts.
+        if (usePreviewApi)
+        {
+            var publishedVersion = item.SelectToken("sys.publishedVersion");
+            pageDocument.Status = publishedVersion != null ? PageDocumentStatus.Published : PageDocumentStatus.Draft;
+        }
+        else
+        {
+            pageDocument.Status = PageDocumentStatus.Published;
+        }
 
         pageDocument.Title = GetLocalizedField(fields, "title", cultureName);
         pageDocument.Description = GetLocalizedField(fields, "description", cultureName);
