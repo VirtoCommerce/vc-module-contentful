@@ -22,7 +22,7 @@ public class Module : IModule
         serviceCollection.AddTransient<IContentfulRenderer, ContentfulRenderer>();
         serviceCollection.AddTransient<IContentfulReader, ContentfulReader>();
         serviceCollection.AddTransient<IContentfulApiClient, ContentfulApiClient>();
-        serviceCollection.AddTransient<ContentfulContentProvider>();
+        serviceCollection.AddTransient<IPageContentProvider, ContentfulContentProvider>();
     }
 
     public void PostInitialize(IApplicationBuilder appBuilder)
@@ -38,9 +38,6 @@ public class Module : IModule
         var permissionsRegistrar = serviceProvider.GetRequiredService<IPermissionsRegistrar>();
         permissionsRegistrar.RegisterPermissions(ModuleInfo.Id, "Contentful", ContentfulConstants.Security.Permissions.AllPermissions);
 
-        // Register content provider for Pages module
-        var contentProviderRegistrar = serviceProvider.GetService<IPageContentProviderRegistrar>();
-        contentProviderRegistrar?.RegisterProvider(() => serviceProvider.GetRequiredService<ContentfulContentProvider>());
     }
 
     public void Uninstall()

@@ -25,30 +25,7 @@ public class ContentfulContentProvider(
     public string ProviderName => "Contentful";
     public bool SupportsReindexation => true;
 
-    public async Task<long> GetTotalChangesCountAsync(DateTime? startDate, DateTime? endDate)
-    {
-        long totalCount = 0;
-        var processedSpaces = new HashSet<string>();
-
-        await ForEachStoreAsync(async (request, _, _) =>
-        {
-            if (!processedSpaces.Add($"{request.SpaceId}:{request.ContentTypeId}"))
-            {
-                return;
-            }
-
-            request.Limit = 0;
-            request.UpdatedAfter = startDate;
-            request.UpdatedBefore = endDate;
-
-            var response = await apiClient.GetEntriesAsync(request);
-            totalCount += response.Total;
-        });
-
-        return totalCount;
-    }
-
-    public async Task<IList<IndexDocumentChange>> GetChangesAsync(DateTime? startDate, DateTime? endDate, long skip, long take)
+    public async Task<PageChangesSearchResult> SearchChangesAsync(PageChangesSearchCriteria criteria)
     {
         var allChanges = new List<IndexDocumentChange>();
         var processedSpaces = new HashSet<string>();
@@ -65,8 +42,8 @@ public class ContentfulContentProvider(
             {
                 request.Limit = PageSize;
                 request.Skip = offset;
-                request.UpdatedAfter = startDate;
-                request.UpdatedBefore = endDate;
+                request.UpdatedAfter = criteria.StartDate;
+                request.UpdatedBefore = criteria.EndDate;
 
                 var response = await apiClient.GetEntriesAsync(request);
 
@@ -85,11 +62,13 @@ public class ContentfulContentProvider(
             }
         });
 
-        return allChanges
-            .OrderByDescending(x => x.ChangeDate)
-            .Skip(Convert.ToInt32(skip))
-            .Take(Convert.ToInt32(take))
-            .ToList();
+        var ordered = allChanges.OrderByDescending(x => x.ChangeDate).ToList();
+
+        return new PageChangesSearchResult
+        {
+            TotalCount = ordered.Count,
+            Results = ordered.Skip(criteria.Skip).Take(criteria.Take).ToList(),
+        };
     }
 
     public async Task<IList<PageDocument>> GetByIdsAsync(IList<string> ids)
