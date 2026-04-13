@@ -32,7 +32,8 @@ public class ContentfulContentProvider(
 
         await ForEachStoreAsync(async (request, _, _) =>
         {
-            if (!processedSpaces.Add($"{request.SpaceId}:{request.ContentTypeId}"))
+            // Include UsePreviewApi in the key: Preview API returns drafts + published, Delivery API returns published only
+            if (!processedSpaces.Add($"{request.SpaceId}:{request.ContentTypeId}:{request.UsePreviewApi}"))
             {
                 return;
             }
@@ -75,9 +76,16 @@ public class ContentfulContentProvider(
     {
         var result = new List<PageDocument>();
         var processedIds = new HashSet<string>();
+        var processedSpaces = new HashSet<string>();
 
         await ForEachStoreAsync(async (request, storeId, defaultLocale) =>
         {
+            // Skip duplicate space+contentType+api combinations to avoid redundant HTTP calls
+            if (!processedSpaces.Add($"{request.SpaceId}:{request.ContentTypeId}:{request.UsePreviewApi}"))
+            {
+                return;
+            }
+
             var remainingIds = ids.Where(id => !processedIds.Contains(id)).ToList();
             if (remainingIds.Count == 0)
             {
