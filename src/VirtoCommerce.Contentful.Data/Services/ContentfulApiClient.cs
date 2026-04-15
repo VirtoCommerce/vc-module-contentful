@@ -42,16 +42,32 @@ public class ContentfulApiClient(IHttpClientFactory httpClientFactory) : IConten
 
     public async Task<ContentfulQueryResponse> GetEntriesByIdsAsync(ContentfulQueryRequest request, IList<string> ids)
     {
-        var idsValue = string.Join(",", ids);
-        var queryParams = new List<string>
-        {
-            $"content_type={Uri.EscapeDataString(request.ContentTypeId)}",
-            "locale=*",
-            $"sys.id[in]={Uri.EscapeDataString(idsValue)}",
-            $"limit={ids.Count}",
-        };
+        // Contentful CDA enforces limit=1000 and ~8KB URL query cap.
+        // Batch to stay well within both constraints.
+        const int batchSize = 100;
 
-        return await FetchAsync(request, queryParams);
+        var allItems = new List<JObject>();
+
+        foreach (var batch in ids.Chunk(batchSize))
+        {
+            var idsValue = string.Join(",", batch);
+            var queryParams = new List<string>
+            {
+                $"content_type={Uri.EscapeDataString(request.ContentTypeId)}",
+                "locale=*",
+                $"sys.id[in]={Uri.EscapeDataString(idsValue)}",
+                $"limit={batch.Length}",
+            };
+
+            var response = await FetchAsync(request, queryParams);
+            allItems.AddRange(response.Items);
+        }
+
+        return new ContentfulQueryResponse
+        {
+            Items = allItems,
+            Total = allItems.Count,
+        };
     }
 
     private async Task<ContentfulQueryResponse> FetchAsync(ContentfulQueryRequest request, List<string> queryParams)
