@@ -14,7 +14,7 @@
     <dependency id="VirtoCommerce.Store" version="3.1000.0" />
   </dependencies>
 
-  <title>Contentful (preview)</title>
+  <title>Contentful</title>
   <description>Integration for contentful.com.</description>
   <authors>
     <author>Alexander Siniouguine</author>
