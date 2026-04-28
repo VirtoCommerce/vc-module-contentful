@@ -1,19 +1,20 @@
 <?xml version="1.0" encoding="utf-8"?>
 <module xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema">
   <id>VirtoCommerce.Contentful</id>
-  <version>3.806.0</version>
+  <version>3.1000.0</version>
   <version-tag />
 
-  <platformVersion>3.853.0</platformVersion>
+  <platformVersion>3.1002.0</platformVersion>
+
   <dependencies>
-    <dependency id="VirtoCommerce.Catalog" version="3.828.0" />
-    <dependency id="VirtoCommerce.Content" version="3.824.0" />
-    <dependency id="VirtoCommerce.Core" version="3.812.0" />
-    <dependency id="VirtoCommerce.Pages" version="3.804.0" />
-    <dependency id="VirtoCommerce.Store" version="3.809.0" />
+    <dependency id="VirtoCommerce.Catalog" version="3.1000.0" />
+    <dependency id="VirtoCommerce.Content" version="3.1000.0" />
+    <dependency id="VirtoCommerce.Core" version="3.1000.0" />
+    <dependency id="VirtoCommerce.Pages" version="3.1004.0" optional="true" />
+    <dependency id="VirtoCommerce.Store" version="3.1000.0" />
   </dependencies>
 
-  <title>Contentful (preview)</title>
+  <title>Contentful</title>
   <description>Integration for contentful.com.</description>
   <authors>
     <author>Alexander Siniouguine</author>

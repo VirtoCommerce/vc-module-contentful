@@ -1,0 +1,22 @@
+{
+  "settings": {
+    "Contentful": {
+      "SpaceId": {
+        "title": "空间ID",
+        "description": "用于访问Content Delivery API的Contentful空间ID"
+      },
+      "DeliveryApiKey": {
+        "title": "Delivery API密钥",
+        "description": "Contentful Content Delivery API访问令牌"
+      },
+      "ContentTypeId": {
+        "title": "内容类型ID",
+        "description": "要作为页面索引的Contentful内容类型ID（默认值：page）"
+      },
+      "PreviewApiKey": {
+        "title": "Preview API密钥",
+        "description": "设置后，索引重建将包含草稿内容"
+      }
+    }
+  }
+}

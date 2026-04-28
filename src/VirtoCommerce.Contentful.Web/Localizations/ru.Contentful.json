@@ -1,0 +1,22 @@
+{
+  "settings": {
+    "Contentful": {
+      "SpaceId": {
+        "title": "Идентификатор пространства",
+        "description": "Идентификатор пространства Contentful для доступа к Content Delivery API"
+      },
+      "DeliveryApiKey": {
+        "title": "Ключ Delivery API",
+        "description": "Токен доступа к Contentful Content Delivery API"
+      },
+      "ContentTypeId": {
+        "title": "Идентификатор типа контента",
+        "description": "Идентификатор типа контента Contentful для индексации как страниц (по умолчанию: page)"
+      },
+      "PreviewApiKey": {
+        "title": "Ключ Preview API",
+        "description": "Токен Contentful Content Preview API. При указании черновики включаются в пересборку индекса"
+      }
+    }
+  }
+}

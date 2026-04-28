@@ -1,0 +1,22 @@
+{
+  "settings": {
+    "Contentful": {
+      "SpaceId": {
+        "title": "スペースID",
+        "description": "Content Delivery APIアクセス用のContentfulスペースID"
+      },
+      "DeliveryApiKey": {
+        "title": "Delivery APIキー",
+        "description": "Contentful Content Delivery APIアクセストークン"
+      },
+      "ContentTypeId": {
+        "title": "コンテンツタイプID",
+        "description": "ページとしてインデックスするContentfulコンテンツタイプID（デフォルト：page）"
+      },
+      "PreviewApiKey": {
+        "title": "Preview APIキー",
+        "description": "Contentful Content Preview APIトークン。設定すると、インデックス再構築に下書きエントリが含まれます"
+      }
+    }
+  }
+}

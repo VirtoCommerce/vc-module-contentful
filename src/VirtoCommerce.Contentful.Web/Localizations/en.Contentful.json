@@ -1,0 +1,22 @@
+{
+  "settings": {
+    "Contentful": {
+      "SpaceId": {
+        "title": "Space ID",
+        "description": "Contentful Space ID for Content Delivery API access"
+      },
+      "DeliveryApiKey": {
+        "title": "Delivery API Key",
+        "description": "Contentful Content Delivery API access token"
+      },
+      "ContentTypeId": {
+        "title": "Content Type ID",
+        "description": "Contentful content type ID to index as pages (default: page)"
+      },
+      "PreviewApiKey": {
+        "title": "Preview API Key",
+        "description": "Contentful Content Preview API token. When set, draft entries are included in index rebuild"
+      }
+    }
+  }
+}

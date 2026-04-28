@@ -52,7 +52,14 @@ public class PagesContentfulController(IContentfulReader contentfulReader,
             }
 
             pageDocument.Status = pageOperation.GetPageDocumentStatus();
-            pageDocument.StoreId = storeId;
+            if (pageDocument.StoreId.IsNullOrEmpty())
+            {
+                pageDocument.StoreId = storeId;
+            }
+            if (pageDocument.CultureName.IsNullOrEmpty())
+            {
+                pageDocument.CultureName = cultureName;
+            }
 
             var pageChangedEvent = AbstractTypeFactory<PagesDomainEvent>.TryCreateInstance();
             pageChangedEvent.Operation = pageOperation;

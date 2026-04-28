@@ -20,9 +20,10 @@ public class ContentfulEntry : Entry<Dictionary<string, Dictionary<string, objec
         result.Id = SystemProperties.Id;
         result.OuterId = SystemProperties.Id;
         result.Permalink = GetField("permalink");
-        if (Fields.TryGetValue("userGroups", out var userGroups))
+        if (Fields.TryGetValue("userGroups", out var userGroups)
+            && userGroups.TryGetValue(CultureName, out var userGroupsValue))
         {
-            result.UserGroups = ((JArray)userGroups[CultureName]).ToObject<string[]>();
+            result.UserGroups = ((JArray)userGroupsValue).ToObject<string[]>();
         }
 
         result.Title = GetField("title");
@@ -31,14 +32,14 @@ public class ContentfulEntry : Entry<Dictionary<string, Dictionary<string, objec
         result.ModifiedBy = SystemProperties.UpdatedBy.SystemProperties.Id;
         result.ModifiedDate = SystemProperties.UpdatedAt;
         result.Source = "contentful";
-        result.Visibility = Fields.TryGetValue("isAuthenticated", out var visibility)
-            ? (bool)visibility[CultureName]
-                ? PageDocumentVisibility.Private
-                : PageDocumentVisibility.Public
-            : PageDocumentVisibility.Private;
+        var isPublic = Fields.TryGetValue("isAuthenticated", out var visibility)
+            && visibility.TryGetValue(CultureName, out var isAuthenticated)
+            && !(bool)isAuthenticated;
+        result.Visibility = isPublic ? PageDocumentVisibility.Public : PageDocumentVisibility.Private;
+        result.StoreId = GetField("storeId");
         result.StartDate = GetDateField("startDate", DateTime.MinValue);
         result.EndDate = GetDateField("endDate", DateTime.MaxValue);
-        result.CultureName = CultureName;
+        result.CultureName = GetField("cultureName") ?? CultureName;
 
         return result;
     }
@@ -46,7 +47,8 @@ public class ContentfulEntry : Entry<Dictionary<string, Dictionary<string, objec
     private string GetField(string fieldName)
     {
         return Fields.TryGetValue(fieldName, out var field)
-            ? field[CultureName]?.ToString()
+            && field.TryGetValue(CultureName, out var value)
+            ? value?.ToString()
             : null;
     }
 
